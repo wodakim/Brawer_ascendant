@@ -253,7 +253,7 @@ engine/assets/
 | Batch | Thème | Nb Anims | Statut |
 |-------|-------|----------|--------|
 | 1 | Respiration & Préparation | 3 | ✅ Validé visuellement (Session 7) |
-| 2 | Locomotion | 7 | 🔄 2/7 — `walk_backward`, `run_forward` ✅ Validés (Sessions 8-9) |
+| 2 | Locomotion | 7 | 🔄 3/7 — `walk_backward`, `run_forward`, `run_backward` ✅ Validés (Sessions 8-9) |
 | 3 | Poings | 3 | ⏳ À faire |
 | 4 | Kicks | 3 | ⏳ À faire |
 | 5 | Combo Chain | 5 | ⏳ À faire |
@@ -396,7 +396,7 @@ Puis ouvrir : `http://localhost:8080/engine/moteur_de_combat_et_rigging.html`
 | focus | ✅ Batch 1 écrit | 40f | non | 1 | ✅ Validé (Session 7) |
 | walk_backward | ✅ Batch 2 écrit | 44f | oui | 2 | ✅ Validé (Session 8) |
 | run_forward | ✅ Batch 2 écrit | 28f | oui | 2 | ✅ Validé (Session 9) |
-| run_backward | ⏳ À faire | 32f | oui | 2 | ❌ |
+| run_backward | ✅ Batch 2 écrit | 32f | oui | 2 | ✅ Validé (Session 9) |
 | step_forward | ⏳ À faire | 18f | non | 2 | ❌ |
 | step_backward | ⏳ À faire | 18f | non | 2 | ❌ |
 | turn_left | ⏳ À faire | 12f | non | 2 | ❌ |
@@ -474,7 +474,7 @@ Puis ouvrir : `http://localhost:8080/engine/moteur_de_combat_et_rigging.html`
 | exit_arena | ⏳ À faire | 40f | non | 20 | ❌ |
 | taunt | ⏳ À faire | 55f | non | 20 | ❌ |
 
-**Compteur** : 11 validées (idle, walk_forward, punch_right, hit_light, hit_heavy, ko_back, idle_breathing, prepare, focus, walk_backward, run_forward) / 77 à implémenter / 88 total (`ANIMATION_NAMES`)
+**Compteur** : 12 validées (idle, walk_forward, punch_right, hit_light, hit_heavy, ko_back, idle_breathing, prepare, focus, walk_backward, run_forward, run_backward) / 76 à implémenter / 88 total (`ANIMATION_NAMES`)
 *(+ `dodge_backward` : bonus déjà codé avec keyframes mais absent de `ANIMATION_NAMES`, hors compteur officiel)*
 
 ---
@@ -644,9 +644,24 @@ En testant en direct, l'utilisateur a constaté que `walk_backward` donnait just
 #### 5. Git
 - Commit + push sur `https://github.com/wodakim/Brawer_ascendant.git` (branche `main`) incluant : `run_forward`, ancrage dynamique au sol (`dynamicGround`/`moveX`), code couleur des boutons, mise à jour de ce journal.
 
+#### 6. Implémentation de `run_backward`
+- 32f, loop:true, `moveX: -4` (recul rapide ; ratio -4/6 ≈ -0.67, cohérent avec le ratio `walk_backward`/`walk_forward` = -2/3 ≈ -0.67).
+- **Miroir temporel** appliqué exactement comme pour `walk_backward` : phases de flexion du genou échangées entre `legLower_L` (flexion 1ère moitié → 2e moitié) et `legLower_R` (2e moitié → 1ère moitié).
+- Amplitudes de jambes/bras réduites ×0.667 (foulée ±30° vs ±45°, genou max 45° vs 65°, bras ±34° vs ±50°, coude amplitude d'oscillation réduite ~10° vs 15°) — "pas raccourcis en arrière", même logique que `walk_backward`.
+- Bassin : rebond identique à `run_forward` (Δ15px), frames mis à l'échelle (28f→32f, ratio 8/7).
+- Torse penché vers l'**arrière** en permanence (signe opposé à `run_forward`, qui penche vers l'avant).
+- Bénéficie automatiquement de l'ancrage dynamique au sol (a `moveX`).
+- Vérification Playwright (caméra suiveuse, frames 0/4/8/12/16/20/24/28/32) : bouclage f0≈f32 cohérent, `x` recule de 4px/frame, ancrage au sol correct, aucune erreur console/page.
+
+#### 7. Validation utilisateur
+`run_backward` validé directement ("ça me convient parfaitement, on peut avancer, tu as fait du bon travail") — animation 3/7 du Batch 2. `validatedAnims` mis à jour (12 animations), `inProgressAnims` vidé.
+
+#### 8. Git
+- Commit + push sur `https://github.com/wodakim/Brawer_ascendant.git` (branche `main`) incluant : `run_backward`, code couleur des boutons, mise à jour de ce journal.
+
 #### Prochaine étape
-**BATCH 2, animation 3/7** : `run_backward` (32f, loop:true) — même logique que `run_forward` mais miroir temporel (cf. méthode appliquée à `walk_backward`), `moveX` négatif cohérent (recul, magnitude entre `walk_backward.moveX = -2` et `-run_forward.moveX`). Une animation à la fois, validation utilisateur avant de continuer.
+**BATCH 2, animation 4/7** : `step_forward` (18f, loop:false) — petit pas d'ajustement vers l'avant (anticipation/repositionnement en combat), `moveX` positif modeste. Une animation à la fois, validation utilisateur avant de continuer.
 
 ---
 
-*Dernière mise à jour : 2026-06-11 — Session 9 — `run_forward` validé, correctif moteur d'ancrage dynamique au sol pour toutes les animations `moveX` (corrige le flottement, sans régression sur `ko_back`/`walk_forward`), poussé sur GitHub.*
+*Dernière mise à jour : 2026-06-11 — Session 9 — `run_forward` et `run_backward` validés (Batch 2, 3/7), correctif moteur d'ancrage dynamique au sol pour toutes les animations `moveX` (corrige le flottement, sans régression sur `ko_back`/`walk_forward`), poussé sur GitHub.*

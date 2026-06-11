@@ -859,6 +859,35 @@ ANIMATIONS_LIB["run_forward"] = {
     }
 };
 
+// B2.3 RUN_BACKWARD — Miroir temporel de run_forward (course en retrait) :
+// phases de flexion du genou échangées entre jambe gauche/droite (même technique
+// que walk_backward), amplitudes de jambes/bras réduites (~x0.67, cohérent avec
+// le ratio walk_backward/walk_forward), torse penché vers l'arrière en permanence
+ANIMATIONS_LIB["run_backward"] = {
+    duration: 32, loop: true,
+    moveX: -4, // Recul rapide : magnitude réduite vs run_forward (cohérent avec walk_backward/walk_forward)
+    tracks: {
+        // Bassin : même rebond que run_forward (Δ15px, 2 appuis/cycle), frames mis à l'échelle (28→32)
+        hip: { y: [{f:0, v:-70}, {f:8, v:-85}, {f:16, v:-70}, {f:24, v:-85}, {f:32, v:-70}] },
+        // Torse : penché vers l'ARRIÈRE en permanence (signe opposé à run_forward)
+        torso: { rotation: [{f:0, v:-10}, {f:16, v:-14}, {f:32, v:-10}] },
+        // Tête : contre-mouvement secondaire (repris de run_forward, frames mis à l'échelle)
+        head: { rotation: [{f:0, v:-3}, {f:16, v:3}, {f:32, v:-3}] },
+        // Jambes : foulée réduite (±30° vs ±45°), genou plié à 45° (vs 65°)
+        legUpper_L: { rotation: [{f:0, v:30}, {f:16, v:-30}, {f:32, v:30}] },
+        // legLower_L : flexion en 2e moitié (phase échangée avec legLower_R, "miroir")
+        legLower_L: { rotation: [{f:0, v:5}, {f:16, v:5}, {f:24, v:45}, {f:32, v:5}] },
+        legUpper_R: { rotation: [{f:0, v:-30}, {f:16, v:30}, {f:32, v:-30}] },
+        // legLower_R : flexion en 1ère moitié (phase échangée avec legLower_L, "miroir")
+        legLower_R: { rotation: [{f:0, v:5}, {f:8, v:45}, {f:16, v:5}, {f:32, v:5}] },
+        // Bras : pompage réduit (±34° vs ±50°), amplitude d'oscillation du coude réduite
+        armUpper_L: { rotation: [{f:0, v:-34}, {f:16, v:34}, {f:32, v:-34}] },
+        armUpper_R: { rotation: [{f:0, v:34}, {f:16, v:-34}, {f:32, v:34}] },
+        armLower_L: { rotation: [{f:0, v:-93}, {f:16, v:-83}, {f:32, v:-93}] },
+        armLower_R: { rotation: [{f:0, v:-83}, {f:16, v:-93}, {f:32, v:-83}] }
+    }
+};
+
 
 /**
  * ==========================================
@@ -1558,7 +1587,7 @@ function initUI() {
     // Génération des boutons d'animations
     const animContainer = document.getElementById('anim-buttons-container');
     // Suivi de l'avancement (voir docs/continuity.md, table "ÉTAT DES ANIMATIONS")
-    const validatedAnims = ["idle", "walk_forward", "punch_right", "hit_light", "hit_heavy", "ko_back", "idle_breathing", "prepare", "focus", "walk_backward", "run_forward"];
+    const validatedAnims = ["idle", "walk_forward", "punch_right", "hit_light", "hit_heavy", "ko_back", "idle_breathing", "prepare", "focus", "walk_backward", "run_forward", "run_backward"];
     const inProgressAnims = [];
 
     ANIMATION_NAMES.forEach(anim => {
