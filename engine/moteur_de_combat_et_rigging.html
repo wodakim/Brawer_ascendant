@@ -553,6 +553,76 @@ ANIMATIONS_LIB["heavy_kick"] = {
     }
 };
 
+// B5.1 COMBO_1 — Premier coup de la chaîne : jab droit, rapide et direct (peu
+// d'anticipation, extension quasi-droite du bras, retour rapide). f0 == f22 ==
+// pose idle : "la pose de fin de combo_1 = la pose de départ de combo_2" est
+// donc satisfaite par construction (les deux = idle), cohérent avec la
+// transition vers "idle" testée par les boutons PLAY individuels.
+ANIMATIONS_LIB["combo_1"] = {
+    duration: 22, loop: false,
+    tracks: {
+        torso: { rotation: [{f:0, v:0}, {f:4, v:-8, e:'easeOutQuad'}, {f:9, v:15, e:'easeInQuad'}, {f:22, v:0, e:'easeOutQuad'}] },
+        head: { rotation: [{f:0, v:0}, {f:9, v:8}, {f:22, v:0}] },
+        hip: {
+            x: [{f:0, v:0}, {f:4, v:-5}, {f:9, v:15, e:'easeOutQuad'}, {f:22, v:0}],
+            y: [{f:0, v:-70}, {f:4, v:-67}, {f:9, v:-74, e:'easeOutQuad'}, {f:22, v:-70}]
+        },
+        legUpper_R: { rotation: [{f:0, v:0}, {f:4, v:12}, {f:9, v:-8}, {f:22, v:0}] },
+        legUpper_L: { rotation: [{f:0, v:0}, {f:4, v:-8}, {f:9, v:12}, {f:22, v:0}] },
+        armUpper_R: { rotation: [{f:0, v:-10}, {f:4, v:20}, {f:9, v:-95, e:'easeInQuad'}, {f:13, v:-100}, {f:22, v:-10, e:'easeOutQuad'}] },
+        armLower_R: { rotation: [{f:0, v:-30}, {f:4, v:-70}, {f:9, v:5}, {f:13, v:10}, {f:22, v:-30}] },
+        armUpper_L: { rotation: [{f:0, v:10}, {f:4, v:-30}, {f:9, v:55}, {f:22, v:10}] }, // Bras gauche en balancier
+        armLower_L: { rotation: [{f:0, v:-20}, {f:4, v:-15}, {f:9, v:-75}, {f:22, v:-20}] }
+    }
+};
+
+// B5.2 COMBO_2 — Deuxième coup de la chaîne : cross gauche, miroir direct de
+// combo_1 (torso/head/legUpper sign-flip + permutation G/D ; armUpper/armLower
+// gardent la même forme de delta rebasée sur la nouvelle baseline, PAS de
+// sign-flip ; hip inchangé — règle de mirroring établie aux Batch 3/4).
+// f0 == f22 == pose idle.
+ANIMATIONS_LIB["combo_2"] = {
+    duration: 22, loop: false,
+    tracks: {
+        torso: { rotation: [{f:0, v:0}, {f:4, v:8, e:'easeOutQuad'}, {f:9, v:-15, e:'easeInQuad'}, {f:22, v:0, e:'easeOutQuad'}] },
+        head: { rotation: [{f:0, v:0}, {f:9, v:-8}, {f:22, v:0}] },
+        hip: {
+            x: [{f:0, v:0}, {f:4, v:-5}, {f:9, v:15, e:'easeOutQuad'}, {f:22, v:0}],
+            y: [{f:0, v:-70}, {f:4, v:-67}, {f:9, v:-74, e:'easeOutQuad'}, {f:22, v:-70}]
+        },
+        legUpper_L: { rotation: [{f:0, v:0}, {f:4, v:-12}, {f:9, v:8}, {f:22, v:0}] },
+        legUpper_R: { rotation: [{f:0, v:0}, {f:4, v:8}, {f:9, v:-12}, {f:22, v:0}] },
+        armUpper_L: { rotation: [{f:0, v:10}, {f:4, v:40}, {f:9, v:-75, e:'easeInQuad'}, {f:13, v:-80}, {f:22, v:10, e:'easeOutQuad'}] },
+        armLower_L: { rotation: [{f:0, v:-20}, {f:4, v:-60}, {f:9, v:15}, {f:13, v:20}, {f:22, v:-20}] },
+        armUpper_R: { rotation: [{f:0, v:-10}, {f:4, v:-50}, {f:9, v:35}, {f:22, v:-10}] }, // Bras droit en balancier
+        armLower_R: { rotation: [{f:0, v:-30}, {f:4, v:-25}, {f:9, v:-85}, {f:22, v:-30}] }
+    }
+};
+
+// B5.3 COMBO_3 — Troisième coup de la chaîne : crochet droit (hook). Pour
+// varier par rapport au jab/cross (combo_1/combo_2, bras qui se tend), le
+// crochet garde le coude plié (~70-90°) tout au long du mouvement et balaie
+// dans un arc large (grande amplitude de armUpper_R + torse qui pivote
+// davantage, avec un léger overshoot/follow-through à f14). f0 == f22 == pose
+// idle.
+ANIMATIONS_LIB["combo_3"] = {
+    duration: 22, loop: false,
+    tracks: {
+        torso: { rotation: [{f:0, v:0}, {f:4, v:-15, e:'easeOutQuad'}, {f:9, v:30, e:'easeInQuad'}, {f:14, v:20}, {f:22, v:0, e:'easeOutQuad'}] },
+        head: { rotation: [{f:0, v:0}, {f:4, v:-5}, {f:9, v:15}, {f:14, v:10}, {f:22, v:0}] },
+        hip: {
+            x: [{f:0, v:0}, {f:4, v:-8}, {f:9, v:20, e:'easeOutQuad'}, {f:14, v:10}, {f:22, v:0}],
+            y: [{f:0, v:-70}, {f:4, v:-66}, {f:9, v:-75, e:'easeOutQuad'}, {f:22, v:-70}]
+        },
+        legUpper_R: { rotation: [{f:0, v:0}, {f:4, v:18}, {f:9, v:-15}, {f:22, v:0}] },
+        legUpper_L: { rotation: [{f:0, v:0}, {f:4, v:-12}, {f:9, v:18}, {f:22, v:0}] },
+        armUpper_R: { rotation: [{f:0, v:-10}, {f:4, v:60}, {f:9, v:-85, e:'easeInQuad'}, {f:14, v:-95}, {f:22, v:-10, e:'easeOutQuad'}] },
+        armLower_R: { rotation: [{f:0, v:-30}, {f:4, v:-50}, {f:9, v:-70}, {f:14, v:-75}, {f:22, v:-30}] }, // Coude reste plié (crochet)
+        armUpper_L: { rotation: [{f:0, v:10}, {f:4, v:-35}, {f:9, v:50}, {f:22, v:10}] },
+        armLower_L: { rotation: [{f:0, v:-20}, {f:4, v:-10}, {f:9, v:-70}, {f:22, v:-20}] }
+    }
+};
+
 // 4. HIT LIGHT (Impact rapide, effet de fouet sur la tête et les bras)
 ANIMATIONS_LIB["hit_light"] = {
     duration: 25, loop: false,
@@ -1851,7 +1921,7 @@ function initUI() {
     // Génération des boutons d'animations
     const animContainer = document.getElementById('anim-buttons-container');
     // Suivi de l'avancement (voir docs/continuity.md, table "ÉTAT DES ANIMATIONS")
-    const validatedAnims = ["idle", "walk_forward", "punch_right", "hit_light", "hit_heavy", "ko_back", "idle_breathing", "prepare", "focus", "walk_backward", "run_forward", "run_backward", "step_forward", "step_backward", "turn_left", "turn_right", "punch_left", "double_punch", "headbutt", "kick_right", "kick_left", "heavy_kick"];
+    const validatedAnims = ["idle", "walk_forward", "punch_right", "hit_light", "hit_heavy", "ko_back", "idle_breathing", "prepare", "focus", "walk_backward", "run_forward", "run_backward", "step_forward", "step_backward", "turn_left", "turn_right", "punch_left", "double_punch", "headbutt", "kick_right", "kick_left", "heavy_kick", "combo_1", "combo_2", "combo_3"];
     const inProgressAnims = [];
 
     ANIMATION_NAMES.forEach(anim => {

@@ -277,7 +277,7 @@ engine/assets/
 | 2 | Locomotion | 7 | ✅ 7/7 — `walk_backward`, `run_forward`, `run_backward`, `step_forward`, `step_backward`, `turn_left`, `turn_right` validés (Sessions 8-9) |
 | 3 | Poings | 3 | ✅ 3/3 — `punch_left`, `double_punch`, `headbutt` validés (Session 9) |
 | 4 | Kicks | 3 | ✅ 3/3 — `kick_right`, `kick_left`, `heavy_kick` validés (Session 9) |
-| 5 | Combo Chain | 5 | ⏳ À faire |
+| 5 | Combo Chain | 5 | ⏳ 3/5 — `combo_1`, `combo_2`, `combo_3` validés (Session 9), reste `combo_4`, `combo_finisher` |
 | 6 | Arme États | 2 | ⏳ À faire |
 | 7 | Arme Attaques | 5 | ⏳ À faire |
 | 8 | Perte d'arme | 5 | ⏳ À faire |
@@ -428,9 +428,9 @@ Puis ouvrir : `http://localhost:8080/engine/moteur_de_combat_et_rigging.html`
 | kick_right | ✅ Batch 4 écrit | 35f | non | 4 | ✅ Validé (Session 9) |
 | kick_left | ✅ Batch 4 écrit | 35f | non | 4 | ✅ Validé (Session 9) |
 | heavy_kick | ✅ Batch 4 écrit | 45f | non | 4 | ✅ Validé (Session 9) |
-| combo_1 | ⏳ À faire | 22f | non | 5 | ❌ |
-| combo_2 | ⏳ À faire | 22f | non | 5 | ❌ |
-| combo_3 | ⏳ À faire | 22f | non | 5 | ❌ |
+| combo_1 | ✅ Batch 5 écrit | 22f | non | 5 | ✅ Validé (Session 9) |
+| combo_2 | ✅ Batch 5 écrit | 22f | non | 5 | ✅ Validé (Session 9) |
+| combo_3 | ✅ Batch 5 écrit | 22f | non | 5 | ✅ Validé (Session 9) |
 | combo_4 | ⏳ À faire | 22f | non | 5 | ❌ |
 | combo_finisher | ⏳ À faire | 50f | non | 5 | ❌ |
 | weapon_draw | ⏳ À faire | 35f | non | 6 | ❌ |
@@ -495,7 +495,7 @@ Puis ouvrir : `http://localhost:8080/engine/moteur_de_combat_et_rigging.html`
 | exit_arena | ⏳ À faire | 40f | non | 20 | ❌ |
 | taunt | ⏳ À faire | 55f | non | 20 | ❌ |
 
-**Compteur** : 22 validées (idle, walk_forward, punch_right, hit_light, hit_heavy, ko_back, idle_breathing, prepare, focus, walk_backward, run_forward, run_backward, step_forward, step_backward, turn_left, turn_right, punch_left, double_punch, headbutt, kick_right, kick_left, heavy_kick) / 66 à implémenter / 88 total (`ANIMATION_NAMES`)
+**Compteur** : 25 validées (idle, walk_forward, punch_right, hit_light, hit_heavy, ko_back, idle_breathing, prepare, focus, walk_backward, run_forward, run_backward, step_forward, step_backward, turn_left, turn_right, punch_left, double_punch, headbutt, kick_right, kick_left, heavy_kick, combo_1, combo_2, combo_3) / 63 à implémenter / 88 total (`ANIMATION_NAMES`)
 *(+ `dodge_backward` : bonus déjà codé avec keyframes mais absent de `ANIMATION_NAMES`, hors compteur officiel)*
 
 ---
@@ -746,9 +746,24 @@ Extension de la règle de mirroring (section 16) pour le cas des coups de pied :
 #### 22. Git
 - Commit + push sur `https://github.com/wodakim/Brawer_ascendant.git` (branche `main`) incluant : `kick_right`, `kick_left`, `heavy_kick`, nouvelle règle de mirroring pour les kicks (RÈGLES FONDAMENTALES), code couleur des boutons, mise à jour de ce journal.
 
+#### 23. Implémentation de `combo_1`, `combo_2`, `combo_3` (Batch 5, sous-lot 1/2)
+Suite à la validation du Batch 4, poursuite avec le Batch 5 (Combo Chain), traité en deux sous-lots de ~2-3 (rythme confirmé par l'utilisateur).
+
+- **Interprétation de la "règle des combos"** (spec : "chaque combo commence là où le précédent se termine ; la pose de départ de combo_2 = la pose de fin de combo_1") : conformément au workflow établi (transition propre vers `idle`, validation individuelle par bouton PLAY), chaque `combo_N` a `f0 == f_end == pose idle`. La règle de chaînage est donc satisfaite par construction (idle == idle), tout en gardant chaque animation testable isolément.
+- **`combo_1`** (22f, loop:false) : jab droit — peu d'anticipation (f4), extension quasi-droite et rapide du bras (f9 = impact, `armUpper_R`→-95°, `armLower_R`→+5° = bras presque tendu), retour rapide (f22 = idle).
+- **`combo_2`** (22f, loop:false) : cross gauche — miroir direct de `combo_1` via la règle de mirroring (Batch 3/4) : `torso`/`head`/`legUpper_*` sign-flip + permutation G/D, `armUpper_*`/`armLower_*` même forme de delta rebasée sur la nouvelle baseline (pas de sign-flip), `hip` inchangé.
+- **`combo_3`** (22f, loop:false) : crochet droit (hook) — pour varier par rapport au jab/cross (bras qui se tend), le coude reste plié (~70-90°, `armLower_R` reste autour de -50/-75°) tout du long et balaie dans un grand arc (`armUpper_R` de +60° à -95°, `torso` pivote jusqu'à +30° à l'impact avec un léger overshoot/follow-through à f14 avant retour à idle).
+- Vérification Playwright (captures caméra-suiveuse aux frames-clés + lecture des données de pose) : les 3 animations transitionnent proprement vers `idle`, aucune erreur console/page, `f0 == f22 == pose idle` sur toutes les pistes, valeurs d'interpolation vérifiées mathématiquement (cohérentes avec la convention de décalage d'1 frame). Captures à l'impact confirment le bras actif pointant vers "SENSOR" pour les 3 coups, avec une silhouette bien différenciée pour le hook (arc large, coude plié) vs jab/cross (extension droite).
+
+#### 24. Validation utilisateur
+`combo_1`, `combo_2` et `combo_3` validés en bloc : *"Je valide, continue"* — **Batch 5 sous-lot 1/2 (3/5)**. `validatedAnims` mis à jour (25 animations), `inProgressAnims` vidé.
+
+#### 25. Git
+- Commit + push sur `https://github.com/wodakim/Brawer_ascendant.git` (branche `main`) incluant : `combo_1`, `combo_2`, `combo_3`, code couleur des boutons, mise à jour de ce journal.
+
 #### Prochaine étape
-**BATCH 5 — Combo Chain (5 animations)** : `combo_1`, `combo_2`, `combo_3`, `combo_4`, `combo_finisher` (voir `ANIMATION_NAMES` et table ÉTAT DES ANIMATIONS). Consulter `docs/ANTIGRAVITY_PROMPT_COMPLET.md` pour le détail. Lots de ~2-3 avec validation groupée (rythme confirmé par l'utilisateur).
+**BATCH 5 — Combo Chain, sous-lot 2/2 (2 animations)** : `combo_4` (kick, 22f) et `combo_finisher` (50f, squash & stretch exagéré `scaleY` 1.3 à l'impact, hip-push vers l'avant pour simuler le recul de l'adversaire). Voir `docs/ANTIGRAVITY_PROMPT_COMPLET.md` BATCH 5 pour le détail. Même interprétation "f0 == f_end == idle" que pour combo_1/2/3 (section 23).
 
 ---
 
-*Dernière mise à jour : 2026-06-11 — Session 9 — Batch 4 (Kicks) terminé et validé (3/3) : `kick_right`, `kick_left`, `heavy_kick`. Règle de mirroring étendue aux kicks (torso/head/hip/legUpper/legLower identiques entre G/D, seuls les bras sont rebasés). 22/88 animations validées. Poussé sur GitHub.*
+*Dernière mise à jour : 2026-06-11 — Session 9 — Batch 5 sous-lot 1/2 validé (3/5) : `combo_1` (jab droit), `combo_2` (cross gauche, miroir), `combo_3` (crochet droit, coude plié + grand arc). 25/88 animations validées. Poussé sur GitHub.*
