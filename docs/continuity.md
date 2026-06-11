@@ -108,6 +108,12 @@ Pour dériver une animation miroir d'une animation déjà validée (ex. `punch_l
 - **Vérification recommandée** : comparer une capture d'écran à la frame d'impact du miroir avec celle de l'original — le membre actif doit pointer vers la zone "SENSOR"/avant dans les deux cas.
 - **Erreur déjà rencontrée** : sign-flip naïf de `armUpper` (par analogie avec `torso`) → le bras frappe en arrière (loin de l'adversaire). Voir Session 9, section 15-16 du journal.
 
+#### Cas particulier des coups de pied (`kick_left` ⟵ `kick_right`) — précisé Session 9 (Batch 4)
+Pour les animations de jambes, `torso.rotation`/`head.rotation`/`hip` ne représentent pas un *twist* (qui inverserait de sens entre G/D) mais un **lean d'équilibre global**, identique quelle que soit la jambe qui frappe. Règle complète pour ce cas :
+- `torso.rotation`, `head.rotation`, `hip` (toutes pistes), `legUpper_*.rotation` et `legLower_*.rotation` (baseline 0 pour les deux jambes) → **valeurs littéralement identiques**, simple ré-étiquetage G↔D (pas de sign-flip, pas de re-delta).
+- `armUpper_*.rotation` / `armLower_*.rotation` → inchangé par rapport à la règle générale ci-dessus (PAS de sign-flip, même forme de delta rebasée sur la nouvelle baseline).
+- Vérifié visuellement par capture d'écran à la frame d'impact (f15) : la jambe active (legUpper_L/legLower_L pour `kick_left`) s'étend bien vers la zone "SENSOR", de façon cohérente avec `kick_right`.
+
 ### Code couleur des boutons "PLAY" (panneau gauche, ~ligne 1496 du HTML)
 - 🟩 Vert (`#2e7d32`) : animation validée par l'utilisateur → ajouter le nom à `validatedAnims`
 - 🟥 Rouge (`#c62828`) : animation en cours de travail (pas encore validée) → ajouter le nom à `inProgressAnims`
@@ -270,7 +276,7 @@ engine/assets/
 | 1 | Respiration & Préparation | 3 | ✅ Validé visuellement (Session 7) |
 | 2 | Locomotion | 7 | ✅ 7/7 — `walk_backward`, `run_forward`, `run_backward`, `step_forward`, `step_backward`, `turn_left`, `turn_right` validés (Sessions 8-9) |
 | 3 | Poings | 3 | ✅ 3/3 — `punch_left`, `double_punch`, `headbutt` validés (Session 9) |
-| 4 | Kicks | 3 | ⏳ À faire |
+| 4 | Kicks | 3 | ✅ 3/3 — `kick_right`, `kick_left`, `heavy_kick` validés (Session 9) |
 | 5 | Combo Chain | 5 | ⏳ À faire |
 | 6 | Arme États | 2 | ⏳ À faire |
 | 7 | Arme Attaques | 5 | ⏳ À faire |
@@ -419,9 +425,9 @@ Puis ouvrir : `http://localhost:8080/engine/moteur_de_combat_et_rigging.html`
 | punch_left | ✅ Batch 3 écrit | 30f | non | 3 | ✅ Validé (Session 9) |
 | double_punch | ✅ Batch 3 écrit | 45f | non | 3 | ✅ Validé (Session 9) |
 | headbutt | ✅ Batch 3 écrit | 28f | non | 3 | ✅ Validé (Session 9) |
-| kick_right | ⏳ À faire | 35f | non | 4 | ❌ |
-| kick_left | ⏳ À faire | 35f | non | 4 | ❌ |
-| heavy_kick | ⏳ À faire | 45f | non | 4 | ❌ |
+| kick_right | ✅ Batch 4 écrit | 35f | non | 4 | ✅ Validé (Session 9) |
+| kick_left | ✅ Batch 4 écrit | 35f | non | 4 | ✅ Validé (Session 9) |
+| heavy_kick | ✅ Batch 4 écrit | 45f | non | 4 | ✅ Validé (Session 9) |
 | combo_1 | ⏳ À faire | 22f | non | 5 | ❌ |
 | combo_2 | ⏳ À faire | 22f | non | 5 | ❌ |
 | combo_3 | ⏳ À faire | 22f | non | 5 | ❌ |
@@ -489,7 +495,7 @@ Puis ouvrir : `http://localhost:8080/engine/moteur_de_combat_et_rigging.html`
 | exit_arena | ⏳ À faire | 40f | non | 20 | ❌ |
 | taunt | ⏳ À faire | 55f | non | 20 | ❌ |
 
-**Compteur** : 19 validées (idle, walk_forward, punch_right, hit_light, hit_heavy, ko_back, idle_breathing, prepare, focus, walk_backward, run_forward, run_backward, step_forward, step_backward, turn_left, turn_right, punch_left, double_punch, headbutt) / 69 à implémenter / 88 total (`ANIMATION_NAMES`)
+**Compteur** : 22 validées (idle, walk_forward, punch_right, hit_light, hit_heavy, ko_back, idle_breathing, prepare, focus, walk_backward, run_forward, run_backward, step_forward, step_backward, turn_left, turn_right, punch_left, double_punch, headbutt, kick_right, kick_left, heavy_kick) / 66 à implémenter / 88 total (`ANIMATION_NAMES`)
 *(+ `dodge_backward` : bonus déjà codé avec keyframes mais absent de `ANIMATION_NAMES`, hors compteur officiel)*
 
 ---
@@ -723,9 +729,26 @@ Ajout d'une règle précise pour dériver une animation miroir (`_left`/`_right`
 #### 18. Git
 - Commit + push sur `https://github.com/wodakim/Brawer_ascendant.git` (branche `main`) incluant : `punch_left`, `double_punch`, `headbutt`, nouvelle règle de mirroring (RÈGLES FONDAMENTALES), code couleur des boutons, mise à jour de ce journal.
 
+#### 19. Implémentation de `kick_right`, `kick_left`, `heavy_kick` (Batch 4, lot de 3)
+Suite à la validation du Batch 3, poursuite avec le Batch 4 (Kicks) selon le même rythme par lots de 3.
+
+- **`kick_right`** (35f, loop:false) : anticipation (jambe arrière, genou plié = "chambré", `legUpper_R`+20°/`legLower_R`+65°), extension rapide vers l'avant (`legUpper_R`-95°, `legLower_R`-12°), follow-through (-40°), retour. `hip.y` monte légèrement à l'impact (-76 vs -70). `armUpper_L` se lève pour l'équilibre (jusqu'à 110°), `armUpper_R` fait contre-balancier. Jambe d'appui (`legUpper_L`/`legLower_L`) ajuste légèrement pour absorber.
+- **`kick_left`** (35f, loop:false) : dérivée de `kick_right` via la nouvelle règle de mirroring pour les kicks (voir section 20) — `torso`/`head`/`hip`/`legUpper_*`/`legLower_*` (baseline 0) gardent des **valeurs littéralement identiques** (simple ré-étiquetage G↔D, la jambe gauche prend le rôle de jambe qui frappe), `armUpper`/`armLower` rebasés sur la nouvelle baseline via la même forme de delta (`armUpper_R` se lève pour l'équilibre, `armUpper_L` fait contre-balancier).
+- **`heavy_kick`** (45f, loop:false) : anticipation plus marquée (`legUpper_R`+35°, torse pivote en arrière à +12° pour charger), grand arc de jambe (`legUpper_R` jusqu'à -100°, conforme au spec "+/-100°"), squash latéral du torse à l'impact (`scaleX` 1→0.8 + `scaleY` complémentaire 1→1.15, conservation de volume), puis repositionnement plus lent (25f de retour après impact vs 20f de montée).
+- Vérification Playwright (captures caméra-suiveuse à chaque frame-clé + lecture des données de pose) : les 3 animations transitionnent proprement vers `idle`, aucune erreur console/page, `f0 == fin == pose idle` sur toutes les pistes, valeurs d'interpolation vérifiées mathématiquement (easing easeIn/Out cohérents avec la convention de décalage d'1 frame du harnais de test).
+
+#### 20. Nouvelle règle de mirroring pour les kicks (RÈGLES FONDAMENTALES)
+Extension de la règle de mirroring (section 16) pour le cas des coups de pied : `torso`/`head`/`hip` représentent un **lean d'équilibre global** (indépendant de la jambe qui frappe), pas un twist. Donc pour `kick_left` ⟵ `kick_right` : `torso.rotation`, `head.rotation`, `hip` (toutes pistes), `legUpper_*.rotation` et `legLower_*.rotation` (baseline 0 pour les deux jambes) gardent des **valeurs littéralement identiques** (simple ré-étiquetage G↔D) ; `armUpper_*`/`armLower_*` suivent la règle générale (pas de sign-flip, même forme de delta rebasée). Vérifié visuellement : la jambe active de `kick_left` (legUpper_L/legLower_L) s'étend bien vers "SENSOR" à la frame d'impact, comme `kick_right`.
+
+#### 21. Validation utilisateur
+`kick_right`, `kick_left` et `heavy_kick` validés en bloc : *"C'est parfait, continue je valide"* — **Batch 4 complet (3/3)**. `validatedAnims` mis à jour (22 animations), `inProgressAnims` vidé.
+
+#### 22. Git
+- Commit + push sur `https://github.com/wodakim/Brawer_ascendant.git` (branche `main`) incluant : `kick_right`, `kick_left`, `heavy_kick`, nouvelle règle de mirroring pour les kicks (RÈGLES FONDAMENTALES), code couleur des boutons, mise à jour de ce journal.
+
 #### Prochaine étape
-**BATCH 4 — Kicks (3 animations)** : `kick_right`, `kick_left`, `heavy_kick` (voir `ANIMATION_NAMES` et table ÉTAT DES ANIMATIONS). Consulter `docs/ANTIGRAVITY_PROMPT_COMPLET.md` pour le détail. Lot de ~3 avec validation groupée (rythme confirmé par l'utilisateur), en appliquant la nouvelle règle de mirroring (section 16) pour le couple `kick_left`/`kick_right`.
+**BATCH 5 — Combo Chain (5 animations)** : `combo_1`, `combo_2`, `combo_3`, `combo_4`, `combo_finisher` (voir `ANIMATION_NAMES` et table ÉTAT DES ANIMATIONS). Consulter `docs/ANTIGRAVITY_PROMPT_COMPLET.md` pour le détail. Lots de ~2-3 avec validation groupée (rythme confirmé par l'utilisateur).
 
 ---
 
-*Dernière mise à jour : 2026-06-11 — Session 9 — Batch 3 (Poings) terminé et validé (3/3) : `punch_left`, `double_punch`, `headbutt`. Règle de mirroring précisée (armUpper/armLower ne se sign-flip PAS, contrairement à torso/head/legUpper). 19/88 animations validées. Poussé sur GitHub.*
+*Dernière mise à jour : 2026-06-11 — Session 9 — Batch 4 (Kicks) terminé et validé (3/3) : `kick_right`, `kick_left`, `heavy_kick`. Règle de mirroring étendue aux kicks (torso/head/hip/legUpper/legLower identiques entre G/D, seuls les bras sont rebasés). 22/88 animations validées. Poussé sur GitHub.*
