@@ -1,0 +1,1551 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moteur de Personnage & Combat 2D</title>
+    <style>
+        :root {
+            --bg: #1e1e1e;
+            --panel: #252526;
+            --border: #333;
+            --text: #ddd;
+            --accent: #007acc;
+            --accent-hover: #005f9e;
+            --danger: #cc4444;
+        }
+        body {
+            margin: 0; padding: 0;
+            background: var(--bg); color: var(--text);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex; height: 100vh; overflow: hidden;
+            font-size: 13px;
+        }
+        canvas {
+            flex-grow: 1; background: #2d2d2d;
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.5);
+            cursor: crosshair;
+            min-width: 0; /* Permet au canvas de se contracter et évite de pousser le panneau droit */
+        }
+        .panel {
+            width: 300px;
+            min-width: 260px;
+            flex-shrink: 0;
+            background: var(--panel);
+            border-left: 1px solid var(--border);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            min-height: 0;
+        }
+        .header { background: #1a1a1a; padding: 10px; font-weight: bold; text-align: center; border-bottom: 1px solid var(--border); }
+        .section { padding: 10px; border-bottom: 1px solid var(--border); }
+        .section-title { font-weight: bold; color: #888; margin-bottom: 8px; text-transform: uppercase; font-size: 11px; letter-spacing: 1px;}
+        .control-group { margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
+        .control-group label { flex: 1; }
+        .control-group input[type="range"] { flex: 2; }
+        .control-group input[type="number"] { width: 50px; background: #333; border: 1px solid #555; color: #fff; padding: 2px; }
+        .control-group select { width: 100%; background: #333; border: 1px solid #555; color: #fff; padding: 4px; }
+        button {
+            background: var(--accent); color: white; border: none; padding: 6px 10px; margin: 2px;
+            cursor: pointer; border-radius: 3px; font-size: 12px; transition: 0.2s;
+        }
+        button:hover { background: var(--accent-hover); }
+        button.active { background: #4caf50; }
+        button.danger { background: var(--danger); }
+        .anim-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+        .anim-grid button { font-size: 10px; padding: 4px; }
+        
+        /* Scrollbar custom */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: #555; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #777; }
+    </style>
+</head>
+<body>
+
+    <!-- PANNEAU ÉDITEUR RIG (GAUCHE) -->
+    <div class="panel" id="left-panel">
+        <div class="header">ÉDITEUR DE RIG & EXPORT</div>
+        
+        <div class="section">
+            <div class="section-title">Sélection du Noeud</div>
+            <div class="control-group">
+                <select id="rig-node-select">
+                    <!-- Rempli en JS -->
+                </select>
+            </div>
+        </div>
+
+        <div class="section" id="rig-editor-controls">
+            <div class="section-title">Transformations</div>
+            <div class="control-group">
+                <label>X</label>
+                <input type="range" id="rig-x" min="-100" max="100" value="0">
+                <input type="number" id="rig-x-val" value="0">
+            </div>
+            <div class="control-group">
+                <label>Y</label>
+                <input type="range" id="rig-y" min="-100" max="100" value="0">
+                <input type="number" id="rig-y-val" value="0">
+            </div>
+            <div class="control-group">
+                <label>Rotation</label>
+                <input type="range" id="rig-rot" min="-180" max="180" value="0">
+                <input type="number" id="rig-rot-val" value="0">
+            </div>
+            <div class="control-group">
+                <label>Scale X</label>
+                <input type="range" id="rig-sx" min="-2" max="2" step="0.1" value="1">
+                <input type="number" id="rig-sx-val" value="1">
+            </div>
+            <div class="control-group">
+                <label>Scale Y</label>
+                <input type="range" id="rig-sy" min="-2" max="2" step="0.1" value="1">
+                <input type="number" id="rig-sy-val" value="1">
+            </div>
+            
+            <div class="section-title" style="margin-top:10px;">Pivot & Dimensions (Base)</div>
+            <div class="control-group">
+                <label>Pivot X</label>
+                <input type="range" id="rig-px" min="0" max="100" value="0">
+                <input type="number" id="rig-px-val" value="0">
+            </div>
+            <div class="control-group">
+                <label>Pivot Y</label>
+                <input type="range" id="rig-py" min="0" max="100" value="0">
+                <input type="number" id="rig-py-val" value="0">
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Play Animation (Fighter A)</div>
+            <div class="anim-grid" id="anim-buttons-container">
+                <!-- Les boutons seront générés en JS -->
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Export (JSON)</div>
+            <button id="btn-export-rig" style="width: 100%;">Exporter Rig JSON</button>
+            <button id="btn-export-anim" style="width: 100%;">Exporter Animations JSON</button>
+            <button id="btn-export-hitbox" style="width: 100%;">Exporter Hitboxes JSON</button>
+        </div>
+    </div>
+
+    <!-- CANVAS PRINCIPAL -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- PANNEAU DEV SANDBOX (DROITE) -->
+    <div class="panel" id="right-panel">
+        <div class="header">DEV COMBAT SANDBOX</div>
+        
+        <div class="section">
+            <div class="section-title">Contrôles Globaux</div>
+            <button id="btn-autocombat" style="width: 100%; margin-bottom: 5px; padding: 10px; font-weight: bold;">AUTO COMBAT : OFF</button>
+            <div style="display: flex; gap: 4px;">
+                <button id="btn-reset" style="flex: 1;">Reset Fight</button>
+                <button id="btn-pause" style="flex: 1;">Pause</button>
+            </div>
+            <div style="display: flex; gap: 4px; margin-top: 4px;">
+                <button id="btn-slowmo" style="flex: 1;">Slow Motion</button>
+                <button id="btn-frame" style="flex: 1;">Frame +1</button>
+                <button id="btn-toggle-weapon" style="flex: 1; background: #c90;">Weapon A</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Debug Visuel</div>
+            <label class="control-group"><input type="checkbox" id="dbg-bones" checked> Bones (Bleu)</label>
+            <label class="control-group"><input type="checkbox" id="dbg-pivots" checked> Pivots (Rouge)</label>
+            <label class="control-group"><input type="checkbox" id="dbg-hitboxes" checked> Hitboxes (Vert)</label>
+            <label class="control-group"><input type="checkbox" id="dbg-labels" checked> Noms des slots</label>
+        </div>
+
+    </div>
+
+<script>
+/**
+ * ==========================================
+ * SYSTÈME DE PERSONNAGES — SEED PAR NOM
+ * Le skin du personnage est déterminé de façon déterministe via le nom du joueur.
+ * Chaque partie du corps = un dossier dans ../characters/{partie}/{N}.svg
+ * N = index calculé depuis le hash du nom (0, 1, 2...)
+ *
+ * SÉPARATION GAMEPLAY :
+ *   - Skin perso (head, torso, bras, jambes, pieds) → ../characters/ → seed du nom
+ *   - Armes / Accessoires                           → ../weapons/    → progression joueur
+ * ==========================================
+ */
+
+/**
+ * Hash djb2 déterministe : même nom → même index → même skin.
+ * @param {string} playerName  Nom du joueur
+ * @param {number} skinCount   Nombre de variantes disponibles pour cette partie
+ * @returns {number} Index entre 0 et skinCount-1
+ */
+function getCharacterIndex(playerName, skinCount = 1) {
+    let hash = 5381;
+    const str = (playerName || 'default').toLowerCase().trim();
+    for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) + hash) + str.charCodeAt(i);
+        hash = hash & hash; // 32-bit
+    }
+    return Math.abs(hash) % skinCount;
+}
+
+/**
+ * Retourne le dictionnaire de chemins SVG pour les nœuds VISUELS du rig.
+ * Seuls les 12 nœuds ayant un SVG dans ../characters/ sont mappés.
+ * Les nœuds structurels (root, hip, face, hair, weaponSocket) sont omis
+ * intentionnellement — ils n'ont pas de représentation visuelle propre.
+ *
+ * Chemin relatif depuis engine/ vers le dossier racine du projet :
+ *   ../characters/{partie}/{N}.svg
+ *
+ * @param {string} playerName  Nom du joueur (détermine le skin via hash)
+ * @param {Object} skinCounts  Optionnel : { partName: nbVariantes } pour chaque partie
+ * @returns {Object} Map nodeId → chemin SVG
+ */
+function getCharacterParts(playerName, skinCounts = {}) {
+    const base = '../characters/';
+    const idx  = n => getCharacterIndex(playerName, n);
+
+    // Mapping nœud BASE_RIG → dossier ../characters/
+    // Seuls les nœuds avec un SVG dédié sont listés ici.
+    return {
+        head:       `${base}head/${idx(skinCounts.head || 1)}.svg`,
+        torso:      `${base}torso/${idx(skinCounts.torso || 1)}.svg`,
+        armUpper_L: `${base}arm_left_up/${idx(skinCounts.arm_left_up || 1)}.svg`,
+        armLower_L: `${base}arm_left_down/${idx(skinCounts.arm_left_down || 1)}.svg`,
+        hand_L:     `${base}hand_left/${idx(skinCounts.hand_left || 1)}.svg`,
+        armUpper_R: `${base}arm_right_up/${idx(skinCounts.arm_right_up || 1)}.svg`,
+        armLower_R: `${base}arm_right_down/${idx(skinCounts.arm_right_down || 1)}.svg`,
+        hand_R:     `${base}hand_right/${idx(skinCounts.hand_right || 1)}.svg`,
+        legUpper_L: `${base}leg_left/${idx(skinCounts.leg_left || 1)}.svg`,
+        legLower_L: `${base}leg_down_left/${idx(skinCounts.leg_down_left || 1)}.svg`,
+        legUpper_R: `${base}leg_right/${idx(skinCounts.leg_right || 1)}.svg`,
+        legLower_R: `${base}leg_down_right/${idx(skinCounts.leg_down_right || 1)}.svg`,
+        foot_L:     `${base}feet_left/${idx(skinCounts.feet_left || 1)}.svg`,
+        foot_R:     `${base}feet_right/${idx(skinCounts.feet_right || 1)}.svg`
+        // NOTE : face, hair → inclus dans head.svg (pas de nœud séparé)
+        // NOTE : weapon      → système séparé ../weapons/ (non lié à la seed du perso)
+        // NOTE : hip, root, weaponSocket → nœuds structurels, pas de visuel
+    };
+}
+
+/**
+ * Nombre de variantes disponibles par partie (à mettre à jour quand tu ajoutes des SVG).
+ * Ex: { head: 3 } si tu as head/0.svg, head/1.svg, head/2.svg
+ */
+const SKIN_COUNTS = {
+    head:          1,
+    torso:         1,
+    arm_left_up:   1,
+    arm_left_down: 1,
+    hand_left:     1,
+    arm_right_up:  1,
+    arm_right_down:1,
+    hand_right:    1,
+    leg_left:      1,
+    leg_down_left: 1,
+    leg_right:     1,
+    leg_down_right:1,
+    feet_left:     1,
+    feet_right:    1
+};
+
+/**
+ * ==========================================
+ * STRUCTURE DU RIG (SQUELETTE DE BASE)
+ * ==========================================
+ */
+const BASE_RIG = {
+    root:       { z: 0, w: 10, h: 10, pX: 5, pY: 5, x: 0, y: 0, parent: null },
+    hip:        { z: 5, w: 40, h: 30, pX: 20, pY: 15, x: 0, y: -70, parent: 'root' },
+    
+    // Jambe Gauche (Arrière plan)
+    legUpper_L: { z: 1, w: 24, h: 45, pX: 12, pY: 5, x: -4, y: 5, parent: 'hip' },
+    legLower_L: { z: 1, w: 20, h: 50, pX: 10, pY: 5, x: 0, y: 40, parent: 'legUpper_L' },
+    foot_L:     { z: 1, w: 35, h: 15, pX: 10, pY: 5, x: -3, y: 48, scaleY: 1.5, parent: 'legLower_L' },
+    
+    // Bras Gauche (Arrière plan) — z=0 pour passer DERRIERE la jambe gauche (z=1)
+    armUpper_L: { z: 0, w: 20, h: 45, pX: 10, pY: 10, x: -20, y: -50, parent: 'torso' },
+    armLower_L: { z: 0, w: 18, h: 45, pX: 9,  pY: 10, x: 0,   y: 37,  parent: 'armUpper_L' },
+    hand_L:     { z: 0, w: 22, h: 18, pX: 11, pY: 5,  x: 0,   y: 35,  parent: 'armLower_L' },
+
+    // Torse et Tête (Milieu)
+    torso:      { z: 4, w: 50, h: 70, pX: 25, pY: 60, x: 0, y: -10, parent: 'hip' },
+    head:       { z: 6, w: 50, h: 50, pX: 25, pY: 45, x: 0, y: -65, parent: 'torso' },
+    face:       { z: 7, w: 40, h: 40, pX: 20, pY: 20, x: 5, y: -10, parent: 'head' },
+    hair:       { z: 8, w: 60, h: 60, pX: 30, pY: 30, x: 0, y: -15, parent: 'head' },
+
+    // Jambe Droite (Premier plan)
+    legUpper_R: { z: 9, w: 24, h: 45, pX: 12, pY: 5, x: 1, y: 5, parent: 'hip' },
+    legLower_R: { z: 9, w: 20, h: 50, pX: 10, pY: 5, x: 0, y: 40, parent: 'legUpper_R' },
+    foot_R:     { z: 9, w: 35, h: 15, pX: 10, pY: 5, x: -1, y: 49, scaleY: 1.5, parent: 'legLower_R' },
+
+    // Bras Droit (Premier plan)
+    armUpper_R: { z: 10, w: 20, h: 45, pX: 4, pY: 0, x: -1, y: -48, parent: 'torso' },
+    armLower_R: { z: 10, w: 18, h: 45, pX: 9,  pY: 10, x: 13,  y: 48,  parent: 'armUpper_R' },
+    hand_R:     { z: 10, w: 22, h: 18, pX: 11, pY: 5,  x: 0,  y: 35,  parent: 'armLower_R' },
+    
+    // Arme
+    weaponSocket:{z: 11, w: 10, h: 10, pX: 5, pY: 5, x: 0, y: 35, parent: 'armLower_R' },
+    weapon:      {z: 12, w: 100, h: 20, pX: 20, pY: 10, x: 0, y: 0, parent: 'weaponSocket'}
+};
+
+/**
+ * ==========================================
+ * LISTE EXHAUSTIVE DES ANIMATIONS
+ * ==========================================
+ */
+const ANIMATION_NAMES = [
+    // Locomotion
+    "idle", "idle_breathing", "walk_forward", "walk_backward", "run_forward", "run_backward",
+    "step_forward", "step_backward", "turn_left", "turn_right",
+    // Attaques mains nues
+    "punch_left", "punch_right", "double_punch", "kick_left", "kick_right", "heavy_kick", "headbutt",
+    // Combos
+    "combo_1", "combo_2", "combo_3", "combo_4", "combo_finisher",
+    // Armes
+    "weapon_draw", "weapon_idle", "weapon_attack_light", "weapon_attack_medium", "weapon_attack_heavy",
+    "weapon_combo", "weapon_critical", "weapon_break", "weapon_drop",
+    // Distance
+    "throw_prepare", "throw_weapon", "throw_followthrough", "catch_weapon",
+    // Défense & Esquive
+    "block", "shield_block", "parry", "counter_stance", "counter_attack",
+    "dodge_left", "dodge_right", "sidestep", "duck", "jump_evade", "backflip",
+    // Réactions
+    "hit_light", "hit_medium", "hit_heavy", "stagger", "knockback", "knockdown",
+    // Divers
+    "critical_prepare", "critical_attack", "critical_finish", "disarm_attack", "weapon_lost", "weapon_fall",
+    "fall_front", "fall_back", "trip", "stand_up", "recover",
+    "ko_front", "ko_back", "ko_spin", "ko_airborne",
+    "special_skill", "special_cast", "special_release",
+    "pet_spawn", "pet_entry", "pet_attack", "pet_hit", "pet_death",
+    "victory", "victory_weapon", "victory_taunt", "victory_celebration",
+    "defeat_idle", "defeat_fall", "spawn", "despawn", "enter_arena", "exit_arena", "taunt", "focus", "prepare"
+];
+
+// Utilitaires Easing
+const Easing = {
+    linear: t => t,
+    easeInQuad: t => t * t,
+    easeOutQuad: t => t * (2 - t),
+    easeInOutQuad: t => t < .5 ? 2 * t * t : -1 + (4 - 2 * t) * t,
+    easeOutElastic: t => {
+        const c4 = (2 * Math.PI) / 3;
+        return t === 0 ? 0 : t === 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
+    }
+};
+
+/**
+ * Bibliothèque d'animations générée.
+ * On définit quelques animations clés avec de l'anticipation, squash&stretch, etc.
+ */
+const ANIMATIONS_LIB = {};
+
+// Fonction pour initialiser toutes les anims vides par défaut
+ANIMATION_NAMES.forEach(name => {
+    ANIMATIONS_LIB[name] = { duration: 30, loop: false, tracks: {} };
+});
+
+// 1. IDLE (Respiration, Squash & Stretch)
+ANIMATIONS_LIB["idle"] = {
+    duration: 60, loop: true,
+    tracks: {
+        torso: {
+            scaleY: [{f: 0, v: 1, e: 'easeInOutQuad'}, {f: 30, v: 0.96, e: 'easeInOutQuad'}, {f: 60, v: 1}],
+            scaleX: [{f: 0, v: 1, e: 'easeInOutQuad'}, {f: 30, v: 1.02, e: 'easeInOutQuad'}, {f: 60, v: 1}],
+            y: [{f:0, v: -10}, {f:30, v: -8}, {f:60, v: -10}]
+        },
+        head: { y: [{f:0, v: -65}, {f:30, v: -63}, {f:60, v: -65}], rotation: [{f:0, v:0}, {f:30, v:2}, {f:60, v:0}] },
+        armUpper_L: { rotation: [{f:0, v:10}, {f:30, v:15}, {f:60, v:10}] },
+        armLower_L: { rotation: [{f:0, v:-20}, {f:30, v:-25}, {f:60, v:-20}] },
+        armUpper_R: { rotation: [{f:0, v:-10}, {f:30, v:-15}, {f:60, v:-10}] },
+        armLower_R: { rotation: [{f:0, v:-30}, {f:30, v:-35}, {f:60, v:-30}] }
+    }
+};
+
+// 2. WALK (Cycle de marche - Correction des genoux)
+ANIMATIONS_LIB["walk_forward"] = {
+    duration: 40, loop: true,
+    tracks: {
+        hip: { y: [{f:0, v:-70}, {f:10, v:-73}, {f:20, v:-70}, {f:30, v:-73}, {f:40, v:-70}] },
+        torso: { rotation: [{f:0, v:5}, {f:20, v:-5}, {f:40, v:5}] },
+        legUpper_L: { rotation: [{f:0, v:30}, {f:20, v:-30}, {f:40, v:30}] },
+        legLower_L: { rotation: [{f:0, v:0}, {f:10, v:50}, {f:20, v:0}, {f:40, v:0}] }, // Rotation positive : plie vers l'arrière
+        legUpper_R: { rotation: [{f:0, v:-30}, {f:20, v:30}, {f:40, v:-30}] },
+        legLower_R: { rotation: [{f:0, v:0}, {f:30, v:50}, {f:40, v:0}] }, // Rotation positive : plie vers l'arrière
+        armUpper_L: { rotation: [{f:0, v:-30}, {f:20, v:30}, {f:40, v:-30}] },
+        armUpper_R: { rotation: [{f:0, v:30}, {f:20, v:-30}, {f:40, v:30}] },
+        armLower_L: { rotation: [{f:0, v:-20}, {f:20, v:-40}, {f:40, v:-20}] }, // Ajout balancement avant-bras
+        armLower_R: { rotation: [{f:0, v:-40}, {f:20, v:-20}, {f:40, v:-40}] }  // Ajout balancement avant-bras
+    }
+};
+
+// 3. PUNCH (Anticipation -> Impact avec balancier global du corps)
+ANIMATIONS_LIB["punch_right"] = {
+    duration: 30, loop: false,
+    tracks: {
+        torso: { rotation: [{f:0, v:0}, {f:10, v:-15, e: 'easeOutQuad'}, {f:15, v:25, e: 'easeInQuad'}, {f:30, v:0, e:'easeOutQuad'}] },
+        armUpper_R: { rotation: [{f:0, v:-10}, {f:10, v:40}, {f:15, v:-90}, {f:20, v:-100}, {f:30, v:-10}] },
+        armLower_R: { rotation: [{f:0, v:-30}, {f:10, v:-80}, {f:15, v:0}, {f:20, v:10}, {f:30, v:-30}] },
+        armUpper_L: { rotation: [{f:0, v:10}, {f:10, v:-40}, {f:15, v:60}, {f:30, v:10}] }, // Le bras gauche recule pour faire balancier
+        armLower_L: { rotation: [{f:0, v:-20}, {f:10, v:-10}, {f:15, v:-80}, {f:30, v:-20}] },
+        head: { rotation: [{f:0, v:0}, {f:15, v:10}, {f:30, v:0}] },
+        hip: { 
+            x: [{f:0, v:0}, {f:10, v:-10}, {f:15, v:25}, {f:30, v:0}], // Impulsion de tout le corps vers l'avant
+            y: [{f:0, v:-70}, {f:10, v:-65}, {f:15, v:-75}, {f:30, v:-70}]
+        },
+        legUpper_R: { rotation: [{f:0, v:0}, {f:10, v:15}, {f:15, v:-10}, {f:30, v:0}] }, // Accompagnement des jambes
+        legUpper_L: { rotation: [{f:0, v:0}, {f:10, v:-10}, {f:15, v:15}, {f:30, v:0}] }
+    }
+};
+
+// 4. HIT LIGHT (Impact rapide, effet de fouet sur la tête et les bras)
+ANIMATIONS_LIB["hit_light"] = {
+    duration: 25, loop: false,
+    tracks: {
+        hip: { x: [{f:0, v:0}, {f:3, v:-15, e:'easeOutQuad'}, {f:12, v:-15}, {f:25, v:0, e:'easeInOutQuad'}] },
+        torso: { 
+            rotation: [{f:0, v:0}, {f:3, v:-35, e:'easeOutQuad'}, {f:12, v:10, e:'easeInQuad'}, {f:25, v:0}],
+            scaleX: [{f:0, v:1}, {f:2, v:0.8}, {f:8, v:1.1}, {f:25, v:1}], // Deformation de l'impact (Squash)
+            scaleY: [{f:0, v:1}, {f:2, v:1.2}, {f:8, v:0.9}, {f:25, v:1}]  // Etirement (Stretch)
+        },
+        head: { rotation: [{f:0, v:0}, {f:5, v:-50, e:'easeOutQuad'}, {f:15, v:15}, {f:25, v:0}] }, // La tête subit l'inertie en retard
+        armUpper_L: { rotation: [{f:0, v:10}, {f:4, v:80}, {f:15, v:-30}, {f:25, v:10}] }, // Bras désarticulé volant vers l'avant
+        armLower_L: { rotation: [{f:0, v:-20}, {f:4, v:-10}, {f:15, v:-70}, {f:25, v:-20}] },
+        armUpper_R: { rotation: [{f:0, v:-10}, {f:4, v:60}, {f:15, v:-40}, {f:25, v:-10}] },
+        armLower_R: { rotation: [{f:0, v:-30}, {f:4, v:-20}, {f:15, v:-80}, {f:25, v:-30}] }
+    }
+};
+
+// 4.5 HIT HEAVY (Gros recul, le personnage plie en deux, le pied avant décolle)
+ANIMATIONS_LIB["hit_heavy"] = {
+    duration: 40, loop: false,
+    tracks: {
+        hip: { 
+            x: [{f:0, v:0}, {f:4, v:-40, e:'easeOutQuad'}, {f:20, v:-45}, {f:40, v:0, e:'easeInOutQuad'}],
+            y: [{f:0, v:-70}, {f:4, v:-80}, {f:20, v:-65}, {f:40, v:-70}] // Petit bond en arrière
+        },
+        torso: { rotation: [{f:0, v:0}, {f:4, v:-55, e:'easeOutQuad'}, {f:20, v:20, e:'easeInOutQuad'}, {f:40, v:0}] },
+        head: { rotation: [{f:0, v:0}, {f:6, v:-75, e:'easeOutQuad'}, {f:22, v:25}, {f:40, v:0}] },
+        legUpper_L: { rotation: [{f:0, v:0}, {f:4, v:-40}, {f:20, v:15}, {f:40, v:0}] }, // Jambe avant projetée en l'air
+        legLower_L: { rotation: [{f:0, v:0}, {f:4, v:50}, {f:20, v:10}, {f:40, v:0}] },
+        armUpper_L: { rotation: [{f:0, v:10}, {f:4, v:110}, {f:20, v:-50}, {f:40, v:10}] },
+        armUpper_R: { rotation: [{f:0, v:-10}, {f:4, v:90}, {f:20, v:-60}, {f:40, v:-10}] }
+    }
+};
+
+// 5. KO BACK (Véritable effet RAGDOLL : Envol -> Chute -> Rebond -> Etalement)
+ANIMATIONS_LIB["ko_back"] = {
+    duration: 60, loop: false,
+    tracks: {
+        hip: { 
+            x: [{f:0, v:0}, {f:10, v:-60, e:'linear'}, {f:25, v:-120, e:'easeOutQuad'}, {f:60, v:-120}],
+            y: [{f:0, v:-70}, {f:10, v:-160, e:'easeOutQuad'}, {f:25, v:-20, e:'easeInQuad'}, {f:35, v:-45, e:'easeOutQuad'}, {f:45, v:-15, e:'easeInQuad'}, {f:60, v:-15}] // Rebond sur le sol
+        },
+        torso: { rotation: [{f:0, v:0}, {f:10, v:-60}, {f:25, v:-85}, {f:35, v:-70}, {f:45, v:-95}, {f:60, v:-95}] }, // S'écrase sur le dos
+        head: { rotation: [{f:0, v:0}, {f:12, v:-85}, {f:25, v:-70}, {f:35, v:-100}, {f:60, v:-90}] }, // La tête claque au sol au rebond
+        legUpper_L: { rotation: [{f:0, v:0}, {f:10, v:45}, {f:25, v:-15}, {f:45, v:10}, {f:60, v:0}] }, // Jambes projetées puis retombent
+        legLower_L: { rotation: [{f:0, v:0}, {f:10, v:20}, {f:25, v:-10}, {f:60, v:0}] },
+        legUpper_R: { rotation: [{f:0, v:0}, {f:10, v:70}, {f:25, v:-25}, {f:45, v:5}, {f:60, v:0}] },
+        armUpper_L: { rotation: [{f:0, v:10}, {f:10, v:130}, {f:25, v:-110}, {f:35, v:-80}, {f:60, v:-130}] }, // Bras complètements ballants
+        armLower_L: { rotation: [{f:0, v:-20}, {f:10, v:-10}, {f:25, v:-50}, {f:60, v:-10}] },
+        armUpper_R: { rotation: [{f:0, v:-10}, {f:10, v:110}, {f:25, v:-100}, {f:35, v:-70}, {f:60, v:-120}] }
+    }
+};
+
+// 6. DODGE (Esquive arrière)
+ANIMATIONS_LIB["dodge_backward"] = {
+    duration: 30, loop: false,
+    tracks: {
+        hip: { x: [{f:0, v:0}, {f:10, v:-30, e: 'easeOutQuad'}, {f:30, v:0}], rotation: [{f:0, v:0}, {f:10, v:-15}, {f:30, v:0}] },
+        torso: { rotation: [{f:0, v:0}, {f:10, v:-20}, {f:30, v:0}] }
+    }
+};
+
+// ============================================================
+// BATCH 1 — RESPIRATION & PRÉPARATION
+// ============================================================
+
+// B1.1 IDLE_BREATHING — Amplification de l'idle : inspiration profonde
+// Torse monte/descend plus, épaules s'élèvent, tête bascule légèrement en arrière au sommet
+ANIMATIONS_LIB["idle_breathing"] = {
+    duration: 80, loop: true,
+    tracks: {
+        // Torse : inspiration (scaleY réduit = compression verticale = squash),
+        // expiration (retour). Mouvement plus ample qu'idle.
+        torso: {
+            scaleY: [
+                {f:0,  v:1,    e:'easeInOutQuad'},
+                {f:20, v:0.94, e:'easeInOutQuad'}, // Expiration — légère compression
+                {f:40, v:1.03, e:'easeInOutQuad'}, // Inspiration — légère extension
+                {f:60, v:0.97, e:'easeInOutQuad'},
+                {f:80, v:1}
+            ],
+            scaleX: [
+                {f:0,  v:1,    e:'easeInOutQuad'},
+                {f:20, v:1.03, e:'easeInOutQuad'}, // Compensation squash
+                {f:40, v:0.98, e:'easeInOutQuad'},
+                {f:60, v:1.02, e:'easeInOutQuad'},
+                {f:80, v:1}
+            ],
+            y: [
+                {f:0,  v:-10, e:'easeInOutQuad'},
+                {f:20, v:-8,  e:'easeInOutQuad'}, // Monte un peu (expiration)
+                {f:40, v:-13, e:'easeInOutQuad'}, // Descend à l'inspiration
+                {f:60, v:-9,  e:'easeInOutQuad'},
+                {f:80, v:-10}
+            ]
+        },
+        // Tête : suit le torse avec 5f de retard, bascule légèrement en arrière au sommet inspiration
+        head: {
+            y: [
+                {f:0,  v:-65, e:'easeInOutQuad'},
+                {f:25, v:-62, e:'easeInOutQuad'},
+                {f:45, v:-67, e:'easeInOutQuad'},
+                {f:65, v:-63, e:'easeInOutQuad'},
+                {f:80, v:-65}
+            ],
+            rotation: [
+                {f:0,  v:0,  e:'easeInOutQuad'},
+                {f:25, v:3,  e:'easeInOutQuad'}, // Tête légèrement vers l'avant (expiration)
+                {f:45, v:-4, e:'easeInOutQuad'}, // Tête bascule en arrière (inspiration)
+                {f:65, v:2,  e:'easeInOutQuad'},
+                {f:80, v:0}
+            ]
+        },
+        // Hip : légère oscillation verticale (respiration abdominale)
+        hip: {
+            y: [
+                {f:0,  v:-70, e:'easeInOutQuad'},
+                {f:20, v:-68, e:'easeInOutQuad'},
+                {f:40, v:-72, e:'easeInOutQuad'},
+                {f:60, v:-69, e:'easeInOutQuad'},
+                {f:80, v:-70}
+            ]
+        },
+        // Épaules : s'élèvent légèrement à l'inspiration (secondary motion, décalage 5f)
+        armUpper_L: {
+            rotation: [
+                {f:0,  v:10,  e:'easeInOutQuad'},
+                {f:25, v:16,  e:'easeInOutQuad'}, // Épaule monte
+                {f:45, v:8,   e:'easeInOutQuad'}, // Épaule descend
+                {f:65, v:14,  e:'easeInOutQuad'},
+                {f:80, v:10}
+            ]
+        },
+        armLower_L: {
+            rotation: [
+                {f:0,  v:-20, e:'easeInOutQuad'},
+                {f:25, v:-28, e:'easeInOutQuad'},
+                {f:45, v:-18, e:'easeInOutQuad'},
+                {f:65, v:-25, e:'easeInOutQuad'},
+                {f:80, v:-20}
+            ]
+        },
+        armUpper_R: {
+            rotation: [
+                {f:0,  v:-10, e:'easeInOutQuad'},
+                {f:25, v:-17, e:'easeInOutQuad'}, // Épaule droite monte aussi
+                {f:45, v:-8,  e:'easeInOutQuad'},
+                {f:65, v:-15, e:'easeInOutQuad'},
+                {f:80, v:-10}
+            ]
+        },
+        armLower_R: {
+            rotation: [
+                {f:0,  v:-30, e:'easeInOutQuad'},
+                {f:25, v:-38, e:'easeInOutQuad'},
+                {f:45, v:-27, e:'easeInOutQuad'},
+                {f:65, v:-35, e:'easeInOutQuad'},
+                {f:80, v:-30}
+            ]
+        }
+    }
+};
+
+// B1.2 PREPARE — Transition depuis idle vers la garde
+// Flexion des genoux, torse incliné vers l'avant, bras montent en garde
+ANIMATIONS_LIB["prepare"] = {
+    duration: 25, loop: false,
+    tracks: {
+        // Hip descend (flexion des genoux)
+        hip: {
+            y: [
+                {f:0,  v:-70, e:'easeInOutQuad'},
+                {f:12, v:-60, e:'easeOutQuad'},  // Descente rapide = garde basse
+                {f:25, v:-63, e:'easeOutQuad'}   // Légère remontée en équilibre
+            ]
+        },
+        // Torse : inclinaison vers l'avant, position de garde
+        torso: {
+            rotation: [
+                {f:0,  v:0,  e:'easeInOutQuad'},
+                {f:8,  v:-8, e:'easeOutQuad'},   // Anticipation : léger recul
+                {f:18, v:12, e:'easeOutQuad'},   // Inclinaison avant (garde)
+                {f:25, v:10, e:'easeInOutQuad'}  // Position finale stable
+            ],
+            scaleY: [
+                {f:0,  v:1,    e:'easeInOutQuad'},
+                {f:12, v:0.93, e:'easeOutQuad'},  // Squash à la flexion
+                {f:25, v:0.96, e:'easeInOutQuad'} // Légèrement comprimé en garde
+            ],
+            scaleX: [
+                {f:0,  v:1,    e:'easeInOutQuad'},
+                {f:12, v:1.05, e:'easeOutQuad'},
+                {f:25, v:1.02, e:'easeInOutQuad'}
+            ]
+        },
+        // Tête suit le torse avec 3f de retard
+        head: {
+            rotation: [
+                {f:0,  v:0,  e:'easeInOutQuad'},
+                {f:11, v:-5, e:'easeOutQuad'},
+                {f:21, v:5,  e:'easeOutQuad'},
+                {f:25, v:3,  e:'easeInOutQuad'}
+            ]
+        },
+        // Genoux fléchissent
+        legUpper_L: {
+            rotation: [
+                {f:0,  v:0,  e:'easeInOutQuad'},
+                {f:12, v:15, e:'easeOutQuad'},
+                {f:25, v:12, e:'easeInOutQuad'}
+            ]
+        },
+        legLower_L: {
+            rotation: [
+                {f:0,  v:0,  e:'easeInOutQuad'},
+                {f:12, v:30, e:'easeOutQuad'},  // Genou fléchi (<70° ok)
+                {f:25, v:25, e:'easeInOutQuad'}
+            ]
+        },
+        legUpper_R: {
+            rotation: [
+                {f:0,  v:0,  e:'easeInOutQuad'},
+                {f:12, v:12, e:'easeOutQuad'},
+                {f:25, v:10, e:'easeInOutQuad'}
+            ]
+        },
+        legLower_R: {
+            rotation: [
+                {f:0,  v:0,  e:'easeInOutQuad'},
+                {f:12, v:28, e:'easeOutQuad'},
+                {f:25, v:22, e:'easeInOutQuad'}
+            ]
+        },
+        // Bras montent en garde — secondary motion, décalage 5f après hip
+        armUpper_L: {
+            rotation: [
+                {f:0,  v:10,  e:'easeInOutQuad'},
+                {f:5,  v:15,  e:'easeOutQuad'},  // Légère montée anticipation
+                {f:17, v:-35, e:'easeOutQuad'},  // Bras gauche monte en garde
+                {f:25, v:-30, e:'easeInOutQuad'}
+            ]
+        },
+        armLower_L: {
+            rotation: [
+                {f:0,  v:-20, e:'easeInOutQuad'},
+                {f:17, v:40,  e:'easeOutQuad'},  // Avant-bras replié en garde
+                {f:25, v:45,  e:'easeInOutQuad'}
+            ]
+        },
+        armUpper_R: {
+            rotation: [
+                {f:0,  v:-10, e:'easeInOutQuad'},
+                {f:5,  v:-15, e:'easeOutQuad'},
+                {f:17, v:-50, e:'easeOutQuad'},  // Bras droit monte en garde
+                {f:25, v:-45, e:'easeInOutQuad'}
+            ]
+        },
+        armLower_R: {
+            rotation: [
+                {f:0,  v:-30, e:'easeInOutQuad'},
+                {f:17, v:50,  e:'easeOutQuad'},
+                {f:25, v:55,  e:'easeInOutQuad'}
+            ]
+        }
+    }
+};
+
+// B1.3 FOCUS — Concentration. Torse stable, tête inclinée, garde resserrée, micro-tremblements
+ANIMATIONS_LIB["focus"] = {
+    duration: 40, loop: false,
+    tracks: {
+        // Torse : très léger squash, personnage qui "rentre dans lui-même"
+        torso: {
+            scaleY: [
+                {f:0,  v:1,    e:'easeInOutQuad'},
+                {f:10, v:0.97, e:'easeInOutQuad'}, // Légère contraction
+                {f:20, v:0.95, e:'easeInOutQuad'}, // Maximum contraction
+                {f:30, v:0.96, e:'easeInOutQuad'},
+                {f:40, v:0.96}                     // Reste en position concentrée
+            ],
+            scaleX: [
+                {f:0,  v:1,    e:'easeInOutQuad'},
+                {f:10, v:1.02, e:'easeInOutQuad'},
+                {f:20, v:1.04, e:'easeInOutQuad'}, // Légèrement élargi (garde)
+                {f:40, v:1.03}
+            ],
+            rotation: [
+                {f:0,  v:0,  e:'easeInOutQuad'},
+                {f:15, v:8,  e:'easeOutQuad'},   // Inclinaison avant stable
+                {f:40, v:8}
+            ]
+        },
+        // Tête : légère inclinaison, regard bas (concentration)
+        head: {
+            rotation: [
+                {f:0,  v:0,  e:'easeInOutQuad'},
+                {f:18, v:10, e:'easeOutQuad'},   // Tête légèrement inclinée vers l'avant
+                {f:40, v:10}
+            ],
+            // Micro-tremblement (secondary motion de tension)
+            y: [
+                {f:0,  v:-65},
+                {f:20, v:-66},
+                {f:25, v:-65},
+                {f:30, v:-66},
+                {f:35, v:-65},
+                {f:40, v:-65}
+            ]
+        },
+        // Hip : descend légèrement (garde basse de concentration)
+        hip: {
+            y: [
+                {f:0,  v:-70, e:'easeInOutQuad'},
+                {f:15, v:-65, e:'easeOutQuad'},
+                {f:40, v:-65}
+            ]
+        },
+        // Bras resserrent la garde — micro-tremblements de tension
+        armUpper_L: {
+            rotation: [
+                {f:0,  v:10,  e:'easeInOutQuad'},
+                {f:15, v:-38, e:'easeOutQuad'},
+                {f:25, v:-36, e:'easeOutQuad'}, // Micro-tremblement
+                {f:30, v:-39, e:'easeOutQuad'},
+                {f:35, v:-37, e:'easeOutQuad'},
+                {f:40, v:-38}
+            ]
+        },
+        armLower_L: {
+            rotation: [
+                {f:0,  v:-20, e:'easeInOutQuad'},
+                {f:15, v:50,  e:'easeOutQuad'},
+                {f:25, v:52,  e:'easeOutQuad'}, // Micro-tremblement
+                {f:30, v:49,  e:'easeOutQuad'},
+                {f:40, v:50}
+            ]
+        },
+        armUpper_R: {
+            rotation: [
+                {f:0,  v:-10, e:'easeInOutQuad'},
+                {f:15, v:-52, e:'easeOutQuad'},
+                {f:25, v:-50, e:'easeOutQuad'},
+                {f:30, v:-53, e:'easeOutQuad'}, // Micro-tremblement
+                {f:35, v:-51, e:'easeOutQuad'},
+                {f:40, v:-52}
+            ]
+        },
+        armLower_R: {
+            rotation: [
+                {f:0,  v:-30, e:'easeInOutQuad'},
+                {f:15, v:58,  e:'easeOutQuad'},
+                {f:25, v:60,  e:'easeOutQuad'},
+                {f:30, v:57,  e:'easeOutQuad'},
+                {f:40, v:58}
+            ]
+        },
+        // Jambes en position de garde légèrement fléchies, micro-tremblements
+        legUpper_L: {
+            rotation: [
+                {f:0,  v:0,  e:'easeInOutQuad'},
+                {f:15, v:14, e:'easeOutQuad'},
+                {f:25, v:15, e:'easeOutQuad'},
+                {f:30, v:13, e:'easeOutQuad'},
+                {f:40, v:14}
+            ]
+        },
+        legLower_L: {
+            rotation: [
+                {f:0,  v:0,  e:'easeInOutQuad'},
+                {f:15, v:28, e:'easeOutQuad'}, // Genou fléchi (<70° ok)
+                {f:40, v:28}
+            ]
+        },
+        legUpper_R: {
+            rotation: [
+                {f:0,  v:0,  e:'easeInOutQuad'},
+                {f:15, v:12, e:'easeOutQuad'},
+                {f:25, v:13, e:'easeOutQuad'},
+                {f:30, v:11, e:'easeOutQuad'},
+                {f:40, v:12}
+            ]
+        },
+        legLower_R: {
+            rotation: [
+                {f:0,  v:0,  e:'easeInOutQuad'},
+                {f:15, v:24, e:'easeOutQuad'},
+                {f:40, v:24}
+            ]
+        }
+    }
+};
+
+
+/**
+ * ==========================================
+ * MOTEUR NOEUDS & SCENE GRAPH
+ * ==========================================
+ */
+class Node {
+    constructor(id, data) {
+        this.id = id;
+        this.parent = null;
+        this.children = [];
+        
+        // Base config
+        this.baseX = data.x || 0;
+        this.baseY = data.y || 0;
+        this.baseRot = data.rotation || 0;
+        this.baseScaleX = data.scaleX !== undefined ? data.scaleX : 1;
+        this.baseScaleY = data.scaleY !== undefined ? data.scaleY : 1;
+        
+        // Animated config
+        this.x = this.baseX;
+        this.y = this.baseY;
+        this.rotation = this.baseRot;
+        this.scaleX = this.baseScaleX;
+        this.scaleY = this.baseScaleY;
+        
+        // Dimensions & Pivot
+        this.w = data.w || 20;
+        this.h = data.h || 20;
+        this.pX = data.pX || 0;
+        this.pY = data.pY || 0;
+        this.z = data.z || 0;
+        this.visible = true; // Permet de masquer dynamiquement un noeud (ex: arme)
+
+        // Assets — chargé dynamiquement via parts injecté par le Fighter
+        this.imagePath = null;
+        this.image = null;
+        // Les parts sont injectés après construction via node.setPart(path)
+        
+        // Matrices
+        this.localMatrix = new DOMMatrix();
+        this.globalMatrix = new DOMMatrix();
+    }
+
+    setPart(imagePath) {
+        this.imagePath = imagePath;
+        if (imagePath) {
+            this.image = new Image();
+            this.image.src = imagePath;
+        } else {
+            this.image = null;
+        }
+    }
+
+    addChild(node) {
+        node.parent = this;
+        this.children.push(node);
+    }
+
+    updateMatrix() {
+        // Reset local
+        this.localMatrix = new DOMMatrix();
+        this.localMatrix.translateSelf(this.x, this.y);
+        this.localMatrix.rotateSelf(this.rotation);
+        this.localMatrix.scaleSelf(this.scaleX, this.scaleY);
+
+        // Compute global
+        if (this.parent) {
+            this.globalMatrix = DOMMatrix.fromMatrix(this.parent.globalMatrix);
+            this.globalMatrix.multiplySelf(this.localMatrix);
+        } else {
+            this.globalMatrix = DOMMatrix.fromMatrix(this.localMatrix);
+        }
+
+        for (let child of this.children) {
+            child.updateMatrix();
+        }
+    }
+
+    getGlobalPos() {
+        return { x: this.globalMatrix.e, y: this.globalMatrix.f };
+    }
+}
+
+class Skeleton {
+    constructor(dir = 1, parts = {}) {
+        this.nodes = {};
+        this.root = null;
+        this.dir = dir; // 1 = right, -1 = left
+        this.x = 0;
+        this.y = 0;
+        this.build(parts);
+    }
+
+    build(parts = {}) {
+        // Instantiate nodes
+        for (const [id, data] of Object.entries(BASE_RIG)) {
+            this.nodes[id] = new Node(id, data);
+        }
+        // Link hierarchy
+        for (const [id, data] of Object.entries(BASE_RIG)) {
+            if (data.parent && this.nodes[data.parent]) {
+                this.nodes[data.parent].addChild(this.nodes[id]);
+            } else if (!data.parent) {
+                this.root = this.nodes[id];
+            }
+        }
+        // Inject parts (SVG images) into nodes
+        for (const [nodeId, path] of Object.entries(parts)) {
+            if (this.nodes[nodeId]) {
+                this.nodes[nodeId].setPart(path);
+            }
+        }
+    }
+
+    resetPose() {
+        for (const id in this.nodes) {
+            const n = this.nodes[id];
+            n.x = n.baseX; n.y = n.baseY;
+            n.rotation = n.baseRot;
+            n.scaleX = n.baseScaleX; n.scaleY = n.baseScaleY;
+        }
+    }
+
+    getFootOffsetY() {
+        // Calcule le Y du bas du pied par rapport au root en pose de repos (rotations = 0)
+        // Pied Gauche
+        const yL = (BASE_RIG.hip.y || 0) + (BASE_RIG.legUpper_L.y || 0) + (BASE_RIG.legLower_L.y || 0) + (BASE_RIG.foot_L.y || 0) + 
+                   ((BASE_RIG.foot_L.h || 15) - (BASE_RIG.foot_L.pY || 5)) * (BASE_RIG.foot_L.scaleY !== undefined ? BASE_RIG.foot_L.scaleY : 1);
+        // Pied Droit
+        const yR = (BASE_RIG.hip.y || 0) + (BASE_RIG.legUpper_R.y || 0) + (BASE_RIG.legLower_R.y || 0) + (BASE_RIG.foot_R.y || 0) + 
+                   ((BASE_RIG.foot_R.h || 15) - (BASE_RIG.foot_R.pY || 5)) * (BASE_RIG.foot_R.scaleY !== undefined ? BASE_RIG.foot_R.scaleY : 1);
+        return Math.max(yL, yR);
+    }
+
+    update(globalX, globalY) {
+        if(this.root) {
+            this.root.x = globalX;
+            // Alignement automatique des pieds sur le sol (globalY)
+            this.root.y = globalY - this.getFootOffsetY();
+            this.root.scaleX = this.dir; // Flip if needed
+            this.root.updateMatrix();
+        }
+    }
+
+    getFlatList() {
+        const list = Object.values(this.nodes);
+        return list.sort((a, b) => a.z - b.z);
+    }
+}
+
+/**
+ * ==========================================
+ * ANIMATOR (Machine à keyframes)
+ * ==========================================
+ */
+class Animator {
+    constructor(skeleton) {
+        this.skeleton = skeleton;
+        this.currentAnim = null;
+        this.frame = 0;
+        this.isPlaying = false;
+        this.onComplete = null;
+    }
+
+    play(animName, onComplete) {
+        const anim = ANIMATIONS_LIB[animName];
+        if(!anim) return;
+        this.currentAnim = anim;
+        this.frame = 0;
+        this.isPlaying = true;
+        this.skeleton.resetPose();
+        this.onComplete = onComplete;
+    }
+
+    update() {
+        if(!this.isPlaying || !this.currentAnim) return;
+
+        // Apply tracks
+        for(const [nodeId, track] of Object.entries(this.currentAnim.tracks)) {
+            const node = this.skeleton.nodes[nodeId];
+            if(!node) continue;
+
+            for(const [prop, keyframes] of Object.entries(track)) {
+                node[prop] = this.interpolate(keyframes, this.frame, node[`base${prop.charAt(0).toUpperCase() + prop.slice(1)}`] || 0);
+            }
+        }
+
+        this.frame++;
+        if(this.frame >= this.currentAnim.duration) {
+            if(this.currentAnim.loop) {
+                this.frame = 0;
+            } else {
+                this.isPlaying = false;
+                if(this.onComplete) this.onComplete();
+            }
+        }
+    }
+
+    interpolate(keys, currentFrame, baseValue) {
+        if(!keys || keys.length === 0) return baseValue;
+        if(keys.length === 1) return keys[0].v;
+        if(currentFrame <= keys[0].f) return keys[0].v;
+        if(currentFrame >= keys[keys.length-1].f) return keys[keys.length-1].v;
+
+        // Find segments
+        let k1 = keys[0], k2 = keys[1];
+        for(let i=0; i<keys.length-1; i++) {
+            if(currentFrame >= keys[i].f && currentFrame < keys[i+1].f) {
+                k1 = keys[i];
+                k2 = keys[i+1];
+                break;
+            }
+        }
+
+        const progress = (currentFrame - k1.f) / (k2.f - k1.f);
+        let eased = progress;
+        if(k2.e && Easing[k2.e]) eased = Easing[k2.e](progress);
+
+        return k1.v + (k2.v - k1.v) * eased;
+    }
+}
+
+/**
+ * ==========================================
+ * STATE MACHINE & FIGHTER LOGIC
+ * ==========================================
+ */
+class Fighter {
+    /**
+     * @param {string} id      - Identifiant d'affichage ("Fighter A", "Fighter B")
+     * @param {number} x       - Position X initiale
+     * @param {number} dir     - Direction : 1 = droite, -1 = gauche
+     * @param {string} playerName - Nom du joueur (détermine le design par seed)
+     */
+    constructor(id, x, dir, playerName = 'default') {
+        this.id = id;
+        this.playerName = playerName;
+        this.characterIndex = getCharacterIndex(playerName);
+        this.x = x;
+        this.y = 500; // Ground level
+        this.dir = dir;
+        
+        // Chargement des parts SVG selon le nom du joueur
+        // SKIN_COUNTS indique le nb de variantes par partie — se met à jour quand tu ajoutes des SVG
+        const parts = getCharacterParts(playerName, SKIN_COUNTS);
+        this.skeleton = new Skeleton(dir, parts);
+        this.animator = new Animator(this.skeleton);
+        this.state = "idle";
+        this.hp = 100;
+        this.target = null;
+        
+        // Stats sandbox
+        this.speed = 3;
+        this.hasWeapon = true; // Gère l'équipement en cours
+        
+        this.changeState("idle");
+    }
+
+    // Calcul en TEMPS RÉEL de l'allonge (Bras + Arme)
+    get attackRange() {
+        let baseReach = 20; // Demi-largeur du torse (distance de l'épaule au centre)
+        
+        // Longueur du bras (Upper + Lower) - estimée à 80% d'extension max
+        const armUpper = this.skeleton.nodes["armUpper_R"];
+        const armLower = this.skeleton.nodes["armLower_R"];
+        if (armUpper) baseReach += armUpper.h * 0.8;
+        if (armLower) baseReach += armLower.h * 0.8; 
+        
+        // Allonge de l'arme si elle est équipée
+        if (this.hasWeapon && this.skeleton.nodes["weapon"]) {
+            const weapon = this.skeleton.nodes["weapon"];
+            // L'allonge est la longueur totale moins la partie tenue dans la main (pX)
+            baseReach += (weapon.w - weapon.pX);
+        }
+        
+        return Math.floor(baseReach);
+    }
+
+    equipWeapon(equipped) {
+        this.hasWeapon = equipped;
+        if (this.skeleton.nodes["weapon"]) {
+            this.skeleton.nodes["weapon"].visible = equipped;
+        }
+    }
+
+    changeState(newState) {
+        this.state = newState;
+        switch(newState) {
+            case "idle": this.animator.play("idle"); break;
+            case "walk": this.animator.play("walk_forward"); break;
+            case "attack": 
+                this.animator.play("punch_right", () => {
+                    // Check hit at end of attack
+                    this.checkHit();
+                    this.changeState("idle");
+                }); 
+                break;
+            case "hit_light":
+                this.animator.play("hit_light", () => this.changeState("idle"));
+                break;
+            case "hit_heavy":
+                this.animator.play("hit_heavy", () => this.changeState("idle"));
+                break;
+            case "ko":
+                this.animator.play("ko_back", () => {
+                    // Reste à terre (ne revient pas en idle)
+                });
+                break;
+        }
+    }
+
+    checkHit() {
+        if(!this.target || this.target.state === "ko") return;
+        
+        // On calcule la distance horizontale globale
+        const dist = Math.abs(this.x - this.target.x);
+        
+        // L'attaque touche si la cible est dans l'allonge dynamique + la demi-largeur de son corps
+        if(dist <= this.attackRange + 25) { 
+            // Dégâts variables pour voir les deux types de hit
+            const damage = Math.random() > 0.5 ? 10 : 25; 
+            this.target.takeDamage(damage);
+        }
+    }
+
+    takeDamage(amount) {
+        if(this.state === "ko") return;
+        this.hp -= amount;
+        
+        // Pousser physiquement le combattant en arrière
+        this.x -= (amount * 0.5) * this.dir; 
+
+        if(this.hp <= 0) {
+            this.hp = 0;
+            this.changeState("ko");
+        } else {
+            // Varie l'animation selon la puissance du coup
+            if (amount >= 20) {
+                this.changeState("hit_heavy");
+            } else {
+                this.changeState("hit_light");
+            }
+        }
+    }
+
+    updateAutoCombat() {
+        if(this.state === "ko" || !this.target || this.target.state === "ko") {
+            if(this.state !== "ko" && this.state !== "idle") this.changeState("idle");
+            return;
+        }
+
+        // 1. Gérer la direction dynamique (toujours faire face à l'adversaire)
+        const dx = this.target.x - this.x;
+        if (Math.abs(dx) > 5) { // Évite le tremblement s'ils sont pixel-perfect superposés
+            this.dir = dx > 0 ? 1 : -1;
+            this.skeleton.dir = this.dir; // Retourne le squelette
+        }
+
+        const dist = Math.abs(dx);
+        
+        // 2. Définir les zones du détecteur
+        const maxRange = this.attackRange; 
+        const minRange = 40; // Distance de sécurité pour éviter la "bouillie" (chevauchement)
+
+        if(this.state === "idle" || this.state === "walk") {
+            if(dist > maxRange) {
+                // Hors de portée : on avance vers la cible
+                this.x += this.speed * this.dir;
+                if(this.state !== "walk") this.changeState("walk");
+            } else if (dist < minRange) {
+                // Trop près : on recule pour garder de l'espace
+                this.x -= this.speed * this.dir;
+                if(this.state !== "walk") this.changeState("walk"); 
+            } else {
+                // L'adversaire est DANS le bloc détecteur : on s'arrête et on tape
+                if(this.state === "walk") this.changeState("idle");
+                
+                // Petit délai aléatoire pour casser la synchronisation robotique
+                if(Math.random() > 0.05) { 
+                    this.changeState("attack");
+                }
+            }
+        }
+    }
+
+    update() {
+        if(window.engineOptions.autoCombat) {
+            this.updateAutoCombat();
+        }
+        
+        this.animator.update();
+        this.skeleton.update(this.x, this.y);
+    }
+}
+
+/**
+ * ==========================================
+ * MOTEUR DE RENDU
+ * ==========================================
+ */
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+
+const engineOptions = {
+    showBones: true,
+    showPivots: true,
+    showHitboxes: true,
+    showLabels: true,
+    autoCombat: false,
+    paused: false,
+    slowMo: false
+};
+window.engineOptions = engineOptions;
+
+let fighterA, fighterB;
+
+function initEngine() {
+    resize();
+    window.addEventListener('resize', resize);
+    
+    resetFight();
+    initUI();
+    
+    requestAnimationFrame(loop);
+}
+
+function resize() {
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
+}
+
+function resetFight() {
+    // Les noms de joueurs déterminent leur design (seed via hash du nom)
+    fighterA = new Fighter("Fighter A", canvas.width/2 - 150, 1,  "Fighter A");
+    fighterB = new Fighter("Fighter B", canvas.width/2 + 150, -1, "Fighter B");
+    fighterA.target = fighterB;
+    fighterB.target = fighterA;
+}
+
+function renderNode(node) {
+    if (node.visible === false) return; // Ne dessine pas si masqué (ex: arme déséquipée)
+    
+    ctx.save();
+    
+    // Apply Global Matrix (World Space)
+    const m = node.globalMatrix;
+    ctx.setTransform(m.a, m.b, m.c, m.d, m.e, m.f);
+
+    // Apply Pivot translation for rendering graphics
+    ctx.translate(-node.pX, -node.pY);
+
+    // 1. Render Graphic
+    if(node.image && node.image.complete && node.image.naturalWidth > 0) {
+        // SVG chargé et prêt
+        ctx.drawImage(node.image, 0, 0, node.w, node.h);
+    } else if(node.imagePath) {
+        // imagePath défini mais SVG pas encore chargé → placeholder de chargement
+        ctx.fillStyle = "rgba(80, 80, 80, 0.6)";
+        ctx.strokeStyle = "#888";
+        ctx.lineWidth = 1;
+        ctx.fillRect(0, 0, node.w, node.h);
+        ctx.strokeRect(0, 0, node.w, node.h);
+        if(engineOptions.showLabels) {
+            ctx.fillStyle = "#aaa";
+            ctx.font = "9px Arial";
+            ctx.fillText(node.id, 2, 12);
+        }
+    }
+    // Pas de imagePath = nœud structurel (root, hip, face, hair, weaponSocket)
+    // → rien à dessiner, invisible par design
+
+    // 2. Debug Hitbox (Vert)
+    if(engineOptions.showHitboxes) {
+        ctx.strokeStyle = "rgba(0, 255, 0, 0.6)";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, 0, node.w, node.h);
+        
+        // Special colored hitboxes
+        if(node.id === "torso") {
+             ctx.fillStyle = "rgba(0, 255, 0, 0.1)";
+             ctx.fillRect(0, 0, node.w, node.h);
+        }
+        if(node.id === "weaponSocket") {
+            ctx.strokeStyle = "rgba(255, 165, 0, 0.8)"; // Orange
+            ctx.strokeRect(-5, -5, node.w+10, node.h+10);
+        }
+    }
+
+    ctx.restore();
+
+    // 3. Debug Bones & Pivots (World Space lines)
+    if(engineOptions.showBones && node.parent) {
+        const p1 = node.parent.getGlobalPos();
+        const p2 = node.getGlobalPos();
+        ctx.save();
+        ctx.setTransform(1,0,0,1,0,0); // Identity
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.strokeStyle = "rgba(0, 150, 255, 0.8)"; // Bleu
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    if(engineOptions.showPivots) {
+        const p = node.getGlobalPos();
+        ctx.save();
+        ctx.setTransform(1,0,0,1,0,0);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 4, 0, Math.PI*2);
+        ctx.fillStyle = "rgba(255, 0, 0, 0.8)"; // Rouge
+        ctx.fill();
+        ctx.restore();
+    }
+}
+
+function renderFighter(fighter) {
+    const nodes = fighter.skeleton.getFlatList();
+    for(const node of nodes) {
+        renderNode(node);
+    }
+    
+    // Dessiner le BLOC DÉTECTEUR (Visualisation de la portée d'engagement)
+    if(engineOptions.showHitboxes && fighter.state !== "ko") {
+        ctx.save();
+        ctx.setTransform(1,0,0,1,0,0);
+        
+        // La zone est projetée devant le personnage
+        const startX = fighter.dir === 1 ? fighter.x : fighter.x - fighter.attackRange;
+        
+        // Déterminer si la cible est à portée valide (ni trop loin, ni trop près)
+        const dist = Math.abs(fighter.x - (fighter.target ? fighter.target.x : 0));
+        const inRange = dist <= fighter.attackRange && dist >= 40 && fighter.target?.state !== "ko";
+        
+        // Le bloc devient rouge quand le détecteur capte une cible prête à être frappée
+        ctx.fillStyle = inRange ? "rgba(255, 0, 0, 0.2)" : "rgba(255, 255, 0, 0.15)";
+        ctx.strokeStyle = inRange ? "rgba(255, 0, 0, 0.8)" : "rgba(255, 255, 0, 0.8)";
+        
+        ctx.fillRect(startX, fighter.y - 70, fighter.attackRange, 30);
+        ctx.strokeRect(startX, fighter.y - 70, fighter.attackRange, 30);
+        
+        ctx.fillStyle = "white";
+        ctx.font = "9px Arial";
+        ctx.fillText("SENSOR", startX + (fighter.attackRange/2) - 20, fighter.y - 75);
+        ctx.restore();
+    }
+    
+    // Draw HP + info personnage
+    ctx.save();
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.fillStyle = "white";
+    ctx.font = "bold 14px Arial";
+    ctx.fillText(`${fighter.id} HP: ${fighter.hp}`, fighter.x - 40, fighter.y - 185);
+    ctx.font = "10px Arial";
+    ctx.fillStyle = "#aaa";
+    ctx.fillText(`char_${String(fighter.characterIndex).padStart(2,'0')} ("${fighter.playerName}")`, fighter.x - 40, fighter.y - 173);
+    ctx.fillStyle = "#444";
+    ctx.fillRect(fighter.x - 40, fighter.y - 168, 100, 8);
+    ctx.fillStyle = fighter.hp > 50 ? "#4caf50" : fighter.hp > 25 ? "#ff9800" : "#f44336";
+    ctx.fillRect(fighter.x - 40, fighter.y - 168, fighter.hp, 8);
+    ctx.restore();
+}
+
+let lastTime = 0;
+let accumulator = 0;
+const frameRate = 1000 / 60;
+
+function loop(time) {
+    requestAnimationFrame(loop);
+    
+    if(engineOptions.paused) return;
+
+    const dt = time - lastTime;
+    lastTime = time;
+    
+    accumulator += dt;
+    const step = engineOptions.slowMo ? frameRate * 3 : frameRate;
+
+    while(accumulator >= step) {
+        updateGame();
+        accumulator -= step;
+    }
+    
+    draw();
+}
+
+function updateGame() {
+    fighterA.update();
+    fighterB.update();
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Ground
+    ctx.fillStyle = "#222";
+    ctx.fillRect(0, 500, canvas.width, canvas.height - 500);
+    ctx.strokeStyle = "#444";
+    ctx.beginPath(); ctx.moveTo(0, 500); ctx.lineTo(canvas.width, 500); ctx.stroke();
+
+    renderFighter(fighterA);
+    renderFighter(fighterB);
+}
+
+/**
+ * ==========================================
+ * GESTION DE L'UI (BINDINGS)
+ * ==========================================
+ */
+function initUI() {
+    // Toggles
+    const bindToggle = (id, prop) => {
+        document.getElementById(id).addEventListener('change', e => {
+            engineOptions[prop] = e.target.checked;
+        });
+    };
+    bindToggle('dbg-bones', 'showBones');
+    bindToggle('dbg-pivots', 'showPivots');
+    bindToggle('dbg-hitboxes', 'showHitboxes');
+    bindToggle('dbg-labels', 'showLabels');
+
+    // Boutons de contrôle
+    const btnAuto = document.getElementById('btn-autocombat');
+    btnAuto.addEventListener('click', () => {
+        engineOptions.autoCombat = !engineOptions.autoCombat;
+        btnAuto.innerText = "AUTO COMBAT : " + (engineOptions.autoCombat ? "ON" : "OFF");
+        btnAuto.className = engineOptions.autoCombat ? "active" : "";
+    });
+
+    document.getElementById('btn-reset').addEventListener('click', resetFight);
+    
+    const btnPause = document.getElementById('btn-pause');
+    btnPause.addEventListener('click', () => {
+        engineOptions.paused = !engineOptions.paused;
+        btnPause.innerText = engineOptions.paused ? "Resume" : "Pause";
+        btnPause.className = engineOptions.paused ? "active" : "";
+    });
+
+    const btnSlowMo = document.getElementById('btn-slowmo');
+    btnSlowMo.addEventListener('click', () => {
+        engineOptions.slowMo = !engineOptions.slowMo;
+        btnSlowMo.className = engineOptions.slowMo ? "active" : "";
+    });
+
+    document.getElementById('btn-frame').addEventListener('click', () => {
+        if(engineOptions.paused) {
+            updateGame(); draw();
+        }
+    });
+
+    // Test dynamique de l'allonge
+    const btnToggleWeapon = document.getElementById('btn-toggle-weapon');
+    if(btnToggleWeapon) {
+        btnToggleWeapon.addEventListener('click', () => {
+            fighterA.equipWeapon(!fighterA.hasWeapon);
+        });
+    }
+
+    // Génération des boutons d'animations
+    const animContainer = document.getElementById('anim-buttons-container');
+    const importantAnims = ["idle", "walk_forward", "punch_right", "hit_light", "hit_heavy", "ko_back", "dodge_backward"];
+    
+    ANIMATION_NAMES.forEach(anim => {
+        const btn = document.createElement('button');
+        btn.innerText = "PLAY " + anim.replace(/_/g, ' ').toUpperCase();
+        if(importantAnims.includes(anim)) btn.style.background = "#d2691e"; // Highlight real ones
+        
+        btn.addEventListener('click', () => {
+            fighterA.animator.play(anim, () => fighterA.animator.play("idle"));
+        });
+        animContainer.appendChild(btn);
+    });
+
+    // Éditeur de Rig
+    const nodeSelect = document.getElementById('rig-node-select');
+    for(const id in BASE_RIG) {
+        const opt = document.createElement('option');
+        opt.value = id; opt.innerText = id;
+        nodeSelect.appendChild(opt);
+    }
+
+    const bindRigSlider = (id, prop, isBase = false) => {
+        const slider = document.getElementById(`rig-${id}`);
+        const valInput = document.getElementById(`rig-${id}-val`);
+        
+        const updateVal = (val) => {
+            valInput.value = val;
+            slider.value = val;
+            const nodeId = nodeSelect.value;
+            // Update BaseRig
+            if(isBase) {
+                BASE_RIG[nodeId][prop] = parseFloat(val);
+                // Update active instances
+                fighterA.skeleton.nodes[nodeId][prop] = parseFloat(val);
+                fighterB.skeleton.nodes[nodeId][prop] = parseFloat(val);
+            } else {
+                BASE_RIG[nodeId][prop] = parseFloat(val);
+                fighterA.skeleton.nodes[nodeId][`base${prop.charAt(0).toUpperCase() + prop.slice(1)}`] = parseFloat(val);
+                fighterB.skeleton.nodes[nodeId][`base${prop.charAt(0).toUpperCase() + prop.slice(1)}`] = parseFloat(val);
+                fighterA.skeleton.nodes[nodeId][prop] = parseFloat(val);
+                fighterB.skeleton.nodes[nodeId][prop] = parseFloat(val);
+            }
+            if(engineOptions.paused) draw();
+        };
+
+        slider.addEventListener('input', e => updateVal(e.target.value));
+        valInput.addEventListener('change', e => updateVal(e.target.value));
+    };
+
+    bindRigSlider('x', 'x'); bindRigSlider('y', 'y'); bindRigSlider('rot', 'rotation');
+    bindRigSlider('sx', 'scaleX'); bindRigSlider('sy', 'scaleY');
+    bindRigSlider('px', 'pX', true); bindRigSlider('py', 'pY', true);
+
+    nodeSelect.addEventListener('change', (e) => {
+        const nodeId = e.target.value;
+        const data = BASE_RIG[nodeId];
+        document.getElementById('rig-x').value = data.x || 0; document.getElementById('rig-x-val').value = data.x || 0;
+        document.getElementById('rig-y').value = data.y || 0; document.getElementById('rig-y-val').value = data.y || 0;
+        document.getElementById('rig-rot').value = data.rotation || 0; document.getElementById('rig-rot-val').value = data.rotation || 0;
+        document.getElementById('rig-sx').value = data.scaleX !== undefined ? data.scaleX : 1; document.getElementById('rig-sx-val').value = data.scaleX !== undefined ? data.scaleX : 1;
+        document.getElementById('rig-sy').value = data.scaleY !== undefined ? data.scaleY : 1; document.getElementById('rig-sy-val').value = data.scaleY !== undefined ? data.scaleY : 1;
+        document.getElementById('rig-px').value = data.pX || 0; document.getElementById('rig-px-val').value = data.pX || 0;
+        document.getElementById('rig-py').value = data.pY || 0; document.getElementById('rig-py-val').value = data.pY || 0;
+    });
+    
+    // Exports
+    const triggerDownload = (filename, data) => {
+        const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename; a.click();
+    };
+
+    document.getElementById('btn-export-rig').addEventListener('click', () => triggerDownload("rig.json", BASE_RIG));
+    document.getElementById('btn-export-anim').addEventListener('click', () => triggerDownload("animations.json", ANIMATIONS_LIB));
+    document.getElementById('btn-export-hitbox').addEventListener('click', () => {
+        const hitboxes = {};
+        for(let id in BASE_RIG) hitboxes[id] = {w: BASE_RIG[id].w, h: BASE_RIG[id].h, z: BASE_RIG[id].z};
+        triggerDownload("hitboxes.json", hitboxes);
+    });
+}
+
+// Démarrage
+window.onload = initEngine;
+
+</script>
+</body>
+</html>
