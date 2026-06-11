@@ -93,6 +93,12 @@
 - **`Fighter.update()`** passe `dynamicGround = true` automatiquement dès que l'animation en cours a une propriété `moveX` (locomotion). Pour toutes les autres animations (combat, KO, idle...), comportement statique conservé à l'identique — vérifié non-régressif sur `ko_back`.
 - **Conséquence pour les futures animations** : toute animation de locomotion (`moveX` défini) sera automatiquement ancrée au sol, peu importe l'amplitude du rebond du bassin ou des flexions de jambes — pas d'action supplémentaire requise au-delà de définir `moveX`.
 
+### Pivot / retournement (`turn_left`/`turn_right`) — propriété `root.flipX` — ajouté Session 9
+- **Problème** : le spec demande d'animer `scaleX` du `root` (1 → -1) pour créer l'effet de "spin" 2D au pivot, mais `Skeleton.update()` écrasait systématiquement `root.scaleX = this.dir` (flip gauche/droite du fighter), ce qui aurait annulé toute piste d'animation sur `root.scaleX`.
+- **Correctif** : nouvelle propriété `Node.flipX` (multiplicateur, défaut `1`), remise à `1` par `resetPose()` à chaque `Animator.play()`. `Skeleton.update()` calcule désormais `root.scaleX = this.dir * this.root.flipX`. Pour les 88-2 animations sans piste `root.flipX`, comportement strictement identique à avant (`flipX` reste à `1`).
+- **`turn_left`/`turn_right`** définissent `tracks.root.flipX = [{f:0,v:1},{f:6,v:0},{f:12,v:-1}]` : le personnage devient une fine "tranche" au point de pivot (f6, avec squash du torse `scaleY: 0.85`), puis apparaît retourné (~f10-11). Comme `resetPose()` remet `flipX=1` au démarrage de l'animation suivante (`idle`), le personnage revient automatiquement à son orientation normale après le pivot — pas de flip permanent qui surprendrait les animations futures.
+- **Conséquence pour les futures animations** : aucune action requise sauf besoin explicite d'un effet de pivot/retournement similaire (réutiliser `tracks.root.flipX`).
+
 ### Code couleur des boutons "PLAY" (panneau gauche, ~ligne 1496 du HTML)
 - 🟩 Vert (`#2e7d32`) : animation validée par l'utilisateur → ajouter le nom à `validatedAnims`
 - 🟥 Rouge (`#c62828`) : animation en cours de travail (pas encore validée) → ajouter le nom à `inProgressAnims`
@@ -253,7 +259,7 @@ engine/assets/
 | Batch | Thème | Nb Anims | Statut |
 |-------|-------|----------|--------|
 | 1 | Respiration & Préparation | 3 | ✅ Validé visuellement (Session 7) |
-| 2 | Locomotion | 7 | 🔄 4/7 — `walk_backward`, `run_forward`, `run_backward`, `step_forward` ✅ Validés (Sessions 8-9) |
+| 2 | Locomotion | 7 | ✅ 7/7 — `walk_backward`, `run_forward`, `run_backward`, `step_forward`, `step_backward`, `turn_left`, `turn_right` validés (Sessions 8-9) |
 | 3 | Poings | 3 | ⏳ À faire |
 | 4 | Kicks | 3 | ⏳ À faire |
 | 5 | Combo Chain | 5 | ⏳ À faire |
@@ -398,9 +404,9 @@ Puis ouvrir : `http://localhost:8080/engine/moteur_de_combat_et_rigging.html`
 | run_forward | ✅ Batch 2 écrit | 28f | oui | 2 | ✅ Validé (Session 9) |
 | run_backward | ✅ Batch 2 écrit | 32f | oui | 2 | ✅ Validé (Session 9) |
 | step_forward | ✅ Batch 2 écrit | 18f | non | 2 | ✅ Validé (Session 9) |
-| step_backward | ⏳ À faire | 18f | non | 2 | ❌ |
-| turn_left | ⏳ À faire | 12f | non | 2 | ❌ |
-| turn_right | ⏳ À faire | 12f | non | 2 | ❌ |
+| step_backward | ✅ Batch 2 écrit | 18f | non | 2 | ✅ Validé (Session 9) |
+| turn_left | ✅ Batch 2 écrit | 12f | non | 2 | ✅ Validé (Session 9) |
+| turn_right | ✅ Batch 2 écrit | 12f | non | 2 | ✅ Validé (Session 9) |
 | punch_left | ⏳ À faire | 30f | non | 3 | ❌ |
 | double_punch | ⏳ À faire | 45f | non | 3 | ❌ |
 | headbutt | ⏳ À faire | 28f | non | 3 | ❌ |
@@ -474,7 +480,7 @@ Puis ouvrir : `http://localhost:8080/engine/moteur_de_combat_et_rigging.html`
 | exit_arena | ⏳ À faire | 40f | non | 20 | ❌ |
 | taunt | ⏳ À faire | 55f | non | 20 | ❌ |
 
-**Compteur** : 13 validées (idle, walk_forward, punch_right, hit_light, hit_heavy, ko_back, idle_breathing, prepare, focus, walk_backward, run_forward, run_backward, step_forward) / 75 à implémenter / 88 total (`ANIMATION_NAMES`)
+**Compteur** : 16 validées (idle, walk_forward, punch_right, hit_light, hit_heavy, ko_back, idle_breathing, prepare, focus, walk_backward, run_forward, run_backward, step_forward, step_backward, turn_left, turn_right) / 72 à implémenter / 88 total (`ANIMATION_NAMES`)
 *(+ `dodge_backward` : bonus déjà codé avec keyframes mais absent de `ANIMATION_NAMES`, hors compteur officiel)*
 
 ---
@@ -673,9 +679,22 @@ En testant en direct, l'utilisateur a constaté que `walk_backward` donnait just
 #### 11. Git
 - Commit + push sur `https://github.com/wodakim/Brawer_ascendant.git` (branche `main`) incluant : `step_forward`, code couleur des boutons, mise à jour de ce journal.
 
+#### 12. Implémentation de `step_backward`, `turn_left`, `turn_right` (lot de 3)
+Suite à une question de l'utilisateur sur l'efficacité du rythme de travail, accord pour traiter ces 3 dernières animations du Batch 2 ensemble puis valider en bloc (au lieu d'une par une).
+
+- **`step_backward`** (18f, loop:false, `moveX: -3`) : dérivée de `step_forward` par inversion des rôles gauche/droite + inversion du signe des rotations directionnelles (torse, legUpper, armUpper) ; `legLower`/`armLower` (flexion genou/coude, convention positive/négative indépendante du côté) gardent la même forme de delta. f0 == f18 == pose idle. Ratio `moveX` -3/5 = -0.6, cohérent avec le ratio walk/run backward (~-0.6 à -0.67, "pas raccourcis en arrière").
+- **`turn_left` / `turn_right`** (12f chacun, loop:false, **pas de `moveX`** — pivot sur place, ancrage statique `getFootOffsetY()` inchangé) : pivot court façon "spin 2D". Nouvelle propriété moteur `root.flipX` (voir RÈGLES FONDAMENTALES, "Pivot / retournement") : `tracks.root.flipX = [{f:0,v:1},{f:6,v:0},{f:12,v:-1}]`, combinée à `torso.scaleY: 1→0.85→1` (squash au point de pivot, conforme au spec) et `hip.y` qui descend légèrement (-70→-73→-70). Chorégraphie des jambes/torse/tête en miroir entre les deux (jambe G ou D qui croise devant). `resetPose()` remet `flipX=1` au démarrage de l'animation suivante → le personnage revient automatiquement à son orientation normale après le pivot, sans flip permanent ni régression sur les 13 animations déjà validées.
+- Vérification Playwright : `step_backward` (frames 0-20, `x` recule de 3px/frame, ancrage dynamique correct, transition idle propre) ; `turn_left`/`turn_right` (frames 0-12, `root.scaleX` interpole proprement 1→0→-0.667 puis revient à 1 via `idle`, squash du torse visible à f6/f7, aucune erreur console/page).
+
+#### 13. Validation utilisateur
+`step_backward`, `turn_left` et `turn_right` validés en bloc ("je les valide !") — **Batch 2 complet (7/7)**. `validatedAnims` mis à jour (16 animations), `inProgressAnims` vidé.
+
+#### 14. Git
+- Commit + push sur `https://github.com/wodakim/Brawer_ascendant.git` (branche `main`) incluant : `step_backward`, `turn_left`, `turn_right`, mécanisme `root.flipX`, code couleur des boutons, mise à jour de ce journal.
+
 #### Prochaine étape
-**BATCH 2, animation 5/7** : `step_backward` (18f, loop:false) — miroir temporel de `step_forward` (même technique que `run_backward`/`walk_backward`), `moveX` négatif modeste. Une animation à la fois, validation utilisateur avant de continuer.
+**BATCH 3 — Poings (3 animations)** : premier batch d'attaques. Une animation à la fois (ou par petits lots validés, comme convenu pour la fin du Batch 2), validation utilisateur avant de continuer. Consulter `docs/ANTIGRAVITY_PROMPT_COMPLET.md` pour le détail des 3 animations du Batch 3.
 
 ---
 
-*Dernière mise à jour : 2026-06-11 — Session 9 — `run_forward`, `run_backward` et `step_forward` validés (Batch 2, 4/7), correctif moteur d'ancrage dynamique au sol pour toutes les animations `moveX` (corrige le flottement, sans régression sur `ko_back`/`walk_forward`), poussé sur GitHub.*
+*Dernière mise à jour : 2026-06-11 — Session 9 — Batch 2 (Locomotion) terminé et validé (7/7) : `run_forward`, `run_backward`, `step_forward`, `step_backward`, `turn_left`, `turn_right`. Correctifs moteur : ancrage dynamique au sol pour `moveX` (corrige le flottement) et `root.flipX` pour les pivots, tous deux non-régressifs. Poussé sur GitHub.*

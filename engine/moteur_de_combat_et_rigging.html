@@ -916,6 +916,91 @@ ANIMATIONS_LIB["step_forward"] = {
     }
 };
 
+// B2.5 STEP_BACKWARD — Miroir de step_forward : rôles des jambes/bras inversés
+// gauche/droite, sens des rotations directionnelles (torso, legUpper, armUpper)
+// inversé ; legLower/armLower (flexion genou/coude, toujours positive/négative
+// quel que soit le côté) gardent la même forme de delta. f0 == f18 == pose idle.
+ANIMATIONS_LIB["step_backward"] = {
+    duration: 18, loop: false,
+    moveX: -3, // Pas en retrait, plus court (ratio ~-0.6 vs step_forward, cohérent avec walk/run backward)
+    tracks: {
+        // Bassin : même creux que step_forward (1 seul appui)
+        hip: { y: [{f:0, v:-70}, {f:9, v:-74}, {f:18, v:-70}] },
+        // Torse : penché vers l'ARRIÈRE (signe opposé à step_forward)
+        torso: { rotation: [{f:0, v:0}, {f:9, v:-8}, {f:18, v:0}] },
+        // Tête : contre-mouvement opposé
+        head: { rotation: [{f:0, v:0}, {f:9, v:3}, {f:18, v:0}] },
+        // Jambe arrière (L) : anticipation (léger pas en avant), swing arrière genou plié, repose au sol
+        legUpper_L: { rotation: [{f:0, v:0}, {f:6, v:15}, {f:14, v:-25}, {f:18, v:0}] },
+        legLower_L: { rotation: [{f:0, v:0}, {f:6, v:35}, {f:14, v:5}, {f:18, v:0}] },
+        // Jambe avant (R) : pousse vers l'avant (impulsion) puis revient en position neutre
+        legUpper_R: { rotation: [{f:0, v:0}, {f:9, v:12}, {f:18, v:0}] },
+        legLower_R: { rotation: [{f:0, v:0}, {f:9, v:10}, {f:18, v:0}] },
+        // Bras : balancement opposé aux jambes, depuis la garde idle (10/-20/-10/-30)
+        armUpper_L: { rotation: [{f:0, v:10}, {f:6, v:-5}, {f:14, v:25}, {f:18, v:10}] },
+        armLower_L: { rotation: [{f:0, v:-20}, {f:6, v:-12}, {f:14, v:-25}, {f:18, v:-20}] },
+        armUpper_R: { rotation: [{f:0, v:-10}, {f:9, v:-20}, {f:18, v:-10}] },
+        armLower_R: { rotation: [{f:0, v:-30}, {f:9, v:-38}, {f:18, v:-30}] }
+    }
+};
+
+// B2.6 TURN_RIGHT — Pivot court (12f, sans boucle, pas de moveX). root.flipX
+// interpole 1 → 0 → -1 (le personnage devient une "tranche" au point de pivot,
+// effet de spin classique en 2D), avec un léger squash du torse au milieu.
+// flipX est remis à 1 par resetPose() au démarrage de l'animation suivante (idle),
+// donc le personnage revient à son orientation normale après le pivot.
+ANIMATIONS_LIB["turn_right"] = {
+    duration: 12, loop: false,
+    tracks: {
+        root: { flipX: [{f:0, v:1}, {f:6, v:0}, {f:12, v:-1}] },
+        // Torse : squash au point de pivot + léger vrillage
+        torso: {
+            scaleY: [{f:0, v:1}, {f:6, v:0.85}, {f:12, v:1}],
+            rotation: [{f:0, v:0}, {f:6, v:5}, {f:12, v:0}]
+        },
+        head: { rotation: [{f:0, v:0}, {f:6, v:-6}, {f:12, v:0}] },
+        hip: { y: [{f:0, v:-70}, {f:6, v:-73}, {f:12, v:-70}] },
+        // Jambe droite : pivote/croise devant
+        legUpper_R: { rotation: [{f:0, v:0}, {f:6, v:25}, {f:12, v:0}] },
+        legLower_R: { rotation: [{f:0, v:0}, {f:6, v:20}, {f:12, v:0}] },
+        // Jambe gauche : contre-appui
+        legUpper_L: { rotation: [{f:0, v:0}, {f:6, v:-15}, {f:12, v:0}] },
+        legLower_L: { rotation: [{f:0, v:0}, {f:6, v:10}, {f:12, v:0}] },
+        // Bras : se resserrent vers le corps pendant le pivot
+        armUpper_L: { rotation: [{f:0, v:10}, {f:6, v:-5}, {f:12, v:10}] },
+        armLower_L: { rotation: [{f:0, v:-20}, {f:6, v:-35}, {f:12, v:-20}] },
+        armUpper_R: { rotation: [{f:0, v:-10}, {f:6, v:5}, {f:12, v:-10}] },
+        armLower_R: { rotation: [{f:0, v:-30}, {f:6, v:-45}, {f:12, v:-30}] }
+    }
+};
+
+// B2.7 TURN_LEFT — Même principe que turn_right (root.flipX 1→0→-1, squash du
+// torse), mais chorégraphie miroir : la jambe gauche pivote/croise devant, la
+// jambe droite fait le contre-appui, et le vrillage du torse/tête est inversé.
+ANIMATIONS_LIB["turn_left"] = {
+    duration: 12, loop: false,
+    tracks: {
+        root: { flipX: [{f:0, v:1}, {f:6, v:0}, {f:12, v:-1}] },
+        torso: {
+            scaleY: [{f:0, v:1}, {f:6, v:0.85}, {f:12, v:1}],
+            rotation: [{f:0, v:0}, {f:6, v:-5}, {f:12, v:0}]
+        },
+        head: { rotation: [{f:0, v:0}, {f:6, v:6}, {f:12, v:0}] },
+        hip: { y: [{f:0, v:-70}, {f:6, v:-73}, {f:12, v:-70}] },
+        // Jambe gauche : pivote/croise devant
+        legUpper_L: { rotation: [{f:0, v:0}, {f:6, v:-25}, {f:12, v:0}] },
+        legLower_L: { rotation: [{f:0, v:0}, {f:6, v:20}, {f:12, v:0}] },
+        // Jambe droite : contre-appui
+        legUpper_R: { rotation: [{f:0, v:0}, {f:6, v:15}, {f:12, v:0}] },
+        legLower_R: { rotation: [{f:0, v:0}, {f:6, v:10}, {f:12, v:0}] },
+        // Bras : se resserrent vers le corps pendant le pivot
+        armUpper_R: { rotation: [{f:0, v:-10}, {f:6, v:5}, {f:12, v:-10}] },
+        armLower_R: { rotation: [{f:0, v:-30}, {f:6, v:-45}, {f:12, v:-30}] },
+        armUpper_L: { rotation: [{f:0, v:10}, {f:6, v:-5}, {f:12, v:10}] },
+        armLower_L: { rotation: [{f:0, v:-20}, {f:6, v:-35}, {f:12, v:-20}] }
+    }
+};
+
 
 /**
  * ==========================================
@@ -941,6 +1026,7 @@ class Node {
         this.rotation = this.baseRot;
         this.scaleX = this.baseScaleX;
         this.scaleY = this.baseScaleY;
+        this.flipX = 1; // Multiplicateur de scaleX du root pour les pivots (turn_left/turn_right)
         
         // Dimensions & Pivot
         this.w = data.w || 20;
@@ -1037,6 +1123,7 @@ class Skeleton {
             n.x = n.baseX; n.y = n.baseY;
             n.rotation = n.baseRot;
             n.scaleX = n.baseScaleX; n.scaleY = n.baseScaleY;
+            n.flipX = 1;
         }
     }
 
@@ -1066,7 +1153,10 @@ class Skeleton {
     update(globalX, globalY, dynamicGround = false) {
         if(this.root) {
             this.root.x = globalX;
-            this.root.scaleX = this.dir; // Flip if needed
+            // this.root.flipX : multiplicateur [-1..1] piloté par une éventuelle piste
+            // root.flipX (turn_left/turn_right), remis à 1 par resetPose() pour toute
+            // autre animation — comportement strictement identique à `this.dir` sinon.
+            this.root.scaleX = this.dir * this.root.flipX;
 
             if(dynamicGround) {
                 // Animations de locomotion (moveX) : ancrage du pied le plus bas au sol
@@ -1615,7 +1705,7 @@ function initUI() {
     // Génération des boutons d'animations
     const animContainer = document.getElementById('anim-buttons-container');
     // Suivi de l'avancement (voir docs/continuity.md, table "ÉTAT DES ANIMATIONS")
-    const validatedAnims = ["idle", "walk_forward", "punch_right", "hit_light", "hit_heavy", "ko_back", "idle_breathing", "prepare", "focus", "walk_backward", "run_forward", "run_backward", "step_forward"];
+    const validatedAnims = ["idle", "walk_forward", "punch_right", "hit_light", "hit_heavy", "ko_back", "idle_breathing", "prepare", "focus", "walk_backward", "run_forward", "run_backward", "step_forward", "step_backward", "turn_left", "turn_right"];
     const inProgressAnims = [];
 
     ANIMATION_NAMES.forEach(anim => {
