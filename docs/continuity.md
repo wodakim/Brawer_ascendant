@@ -99,6 +99,15 @@
 - **`turn_left`/`turn_right`** définissent `tracks.root.flipX = [{f:0,v:1},{f:6,v:0},{f:12,v:-1}]` : le personnage devient une fine "tranche" au point de pivot (f6, avec squash du torse `scaleY: 0.85`), puis apparaît retourné (~f10-11). Comme `resetPose()` remet `flipX=1` au démarrage de l'animation suivante (`idle`), le personnage revient automatiquement à son orientation normale après le pivot — pas de flip permanent qui surprendrait les animations futures.
 - **Conséquence pour les futures animations** : aucune action requise sauf besoin explicite d'un effet de pivot/retournement similaire (réutiliser `tracks.root.flipX`).
 
+### Mirroring (animations `_left`/`_right` ou `_backward`/`_forward`) — précisé Session 9
+Pour dériver une animation miroir d'une animation déjà validée (ex. `punch_left` ⟵ `punch_right`, ou un futur `kick_left` ⟵ `kick_right`), appliquer ces règles **par piste**, et non un sign-flip global :
+- **`torso.rotation`, `head.rotation`, `legUpper_*.rotation`** (twist/lean du buste, baseline 0) → **sign-flip** (inverser le signe de chaque valeur).
+- **`armUpper_*.rotation`** (bras qui frappe/swing vers l'adversaire) → **PAS de sign-flip** : appliquer la **même forme de delta** (différences relatives aux keyframes) à la nouvelle baseline (`armUpper_L` baseline = +10, `armUpper_R` baseline = -10). Convention : "plus négatif = vers l'avant/l'adversaire", valable pour les DEUX bras (le bras gauche ne suit pas une convention inversée).
+- **`armLower_*.rotation` / `legLower_*.rotation`** (flexion coude/genou, convention "toujours un seul signe" — `armLower_L`≈-20, `armLower_R`≈-30, `legLower_*`≈0..+) → **PAS de sign-flip** : même forme de delta appliquée à la nouvelle baseline.
+- **`hip.x`** (impulsion/lunge vers l'avant) → **inchangé** (même direction pour les deux côtés).
+- **Vérification recommandée** : comparer une capture d'écran à la frame d'impact du miroir avec celle de l'original — le membre actif doit pointer vers la zone "SENSOR"/avant dans les deux cas.
+- **Erreur déjà rencontrée** : sign-flip naïf de `armUpper` (par analogie avec `torso`) → le bras frappe en arrière (loin de l'adversaire). Voir Session 9, section 15-16 du journal.
+
 ### Code couleur des boutons "PLAY" (panneau gauche, ~ligne 1496 du HTML)
 - 🟩 Vert (`#2e7d32`) : animation validée par l'utilisateur → ajouter le nom à `validatedAnims`
 - 🟥 Rouge (`#c62828`) : animation en cours de travail (pas encore validée) → ajouter le nom à `inProgressAnims`
@@ -260,7 +269,7 @@ engine/assets/
 |-------|-------|----------|--------|
 | 1 | Respiration & Préparation | 3 | ✅ Validé visuellement (Session 7) |
 | 2 | Locomotion | 7 | ✅ 7/7 — `walk_backward`, `run_forward`, `run_backward`, `step_forward`, `step_backward`, `turn_left`, `turn_right` validés (Sessions 8-9) |
-| 3 | Poings | 3 | ⏳ À faire |
+| 3 | Poings | 3 | ✅ 3/3 — `punch_left`, `double_punch`, `headbutt` validés (Session 9) |
 | 4 | Kicks | 3 | ⏳ À faire |
 | 5 | Combo Chain | 5 | ⏳ À faire |
 | 6 | Arme États | 2 | ⏳ À faire |
@@ -407,9 +416,9 @@ Puis ouvrir : `http://localhost:8080/engine/moteur_de_combat_et_rigging.html`
 | step_backward | ✅ Batch 2 écrit | 18f | non | 2 | ✅ Validé (Session 9) |
 | turn_left | ✅ Batch 2 écrit | 12f | non | 2 | ✅ Validé (Session 9) |
 | turn_right | ✅ Batch 2 écrit | 12f | non | 2 | ✅ Validé (Session 9) |
-| punch_left | ⏳ À faire | 30f | non | 3 | ❌ |
-| double_punch | ⏳ À faire | 45f | non | 3 | ❌ |
-| headbutt | ⏳ À faire | 28f | non | 3 | ❌ |
+| punch_left | ✅ Batch 3 écrit | 30f | non | 3 | ✅ Validé (Session 9) |
+| double_punch | ✅ Batch 3 écrit | 45f | non | 3 | ✅ Validé (Session 9) |
+| headbutt | ✅ Batch 3 écrit | 28f | non | 3 | ✅ Validé (Session 9) |
 | kick_right | ⏳ À faire | 35f | non | 4 | ❌ |
 | kick_left | ⏳ À faire | 35f | non | 4 | ❌ |
 | heavy_kick | ⏳ À faire | 45f | non | 4 | ❌ |
@@ -480,7 +489,7 @@ Puis ouvrir : `http://localhost:8080/engine/moteur_de_combat_et_rigging.html`
 | exit_arena | ⏳ À faire | 40f | non | 20 | ❌ |
 | taunt | ⏳ À faire | 55f | non | 20 | ❌ |
 
-**Compteur** : 16 validées (idle, walk_forward, punch_right, hit_light, hit_heavy, ko_back, idle_breathing, prepare, focus, walk_backward, run_forward, run_backward, step_forward, step_backward, turn_left, turn_right) / 72 à implémenter / 88 total (`ANIMATION_NAMES`)
+**Compteur** : 19 validées (idle, walk_forward, punch_right, hit_light, hit_heavy, ko_back, idle_breathing, prepare, focus, walk_backward, run_forward, run_backward, step_forward, step_backward, turn_left, turn_right, punch_left, double_punch, headbutt) / 69 à implémenter / 88 total (`ANIMATION_NAMES`)
 *(+ `dodge_backward` : bonus déjà codé avec keyframes mais absent de `ANIMATION_NAMES`, hors compteur officiel)*
 
 ---
@@ -692,9 +701,31 @@ Suite à une question de l'utilisateur sur l'efficacité du rythme de travail, a
 #### 14. Git
 - Commit + push sur `https://github.com/wodakim/Brawer_ascendant.git` (branche `main`) incluant : `step_backward`, `turn_left`, `turn_right`, mécanisme `root.flipX`, code couleur des boutons, mise à jour de ce journal.
 
+#### 15. Implémentation de `punch_left`, `double_punch`, `headbutt` (Batch 3, lot de 3)
+Suite au feedback positif sur le rythme par lots de 3 (Batch 2), même approche pour le premier batch d'attaques.
+
+- **`punch_left`** (30f, loop:false) : miroir de `punch_right`. `torso`/`head`/`legUpper` (twist/lean, baseline 0) sign-flip ; `armUpper`/`armLower` gardent la **même forme de delta** appliquée à la nouvelle baseline (PAS de sign-flip — convention "négatif = vers l'avant/l'adversaire" valable pour les deux bras) ; `hip.x/y` (impulsion avant + bob) inchangés.
+- **`double_punch`** (45f, loop:false) : `punch_right` (frames 0-18, compressé ×0.6) → `punch_left` (frames 18-45, compressé ×0.9), torse oscillant entre les deux appuis (-15°→+25°→0→+15°→-25°→0°). Continuité vérifiée sur toutes les pistes à la jonction f18.
+- **`headbutt`** (28f, loop:false) : anticipation (léger recul du torse à f3), puis le torse se penche brusquement en avant (+40° à f8, easeOutQuad), la tête suit avec retard et dépasse (+60° à f12, easeOutQuad), puis retour avec follow-through/overshoot (f18) jusqu'à idle (f28). Léger squash/stretch du torse (`scaleY` 0.95→1.05) + lunge avant via `hip.x`.
+- **Bug de mirroring détecté et corrigé** : la première version de `punch_left`/`double_punch` faisait un sign-flip de `armUpper_L`/`armUpper_R` (par analogie avec `torso`), ce qui faisait frapper le bras **en arrière** (loin de l'adversaire). Détecté par comparaison de captures d'écran `double_punch` f9 (impact droit) vs f32 (impact gauche) : à f32 le bras pointait dans la mauvaise direction. Corrigé en appliquant la même forme de delta que `armLower` (pas de sign-flip) — voir règle ajoutée ci-dessous.
+- Vérification Playwright (après correction) : les 3 animations transitionnent proprement vers `idle`, aucune erreur console/page, f0 == fin == pose idle sur toutes les pistes, valeurs d'interpolation vérifiées mathématiquement (easing easeIn/Out cohérents).
+
+#### 16. Nouvelle règle de mirroring (RÈGLES FONDAMENTALES)
+Ajout d'une règle précise pour dériver une animation miroir (`_left`/`_right` ou `_backward`/`_forward`) :
+- `torso.rotation`, `head.rotation`, `legUpper_*.rotation` (twist/lean, baseline 0) → **sign-flip**.
+- `armUpper_*.rotation` (le bras qui frappe/swing vers l'adversaire) → **PAS de sign-flip**, même forme de delta appliquée à la nouvelle baseline (convention "plus négatif = vers l'avant" pour les deux côtés).
+- `armLower_*.rotation` / `legLower_*.rotation` (flexion coude/genou, "toujours un seul signe") → **PAS de sign-flip**, même forme de delta.
+- `hip.x` (impulsion avant) → **inchangé**.
+
+#### 17. Validation utilisateur
+`punch_left`, `double_punch` et `headbutt` validés en bloc : *"Je valide clairement tu fais des mouvements très fluide, tu as compris le feeling je te félicite, tu peux continuer"* — **Batch 3 complet (3/3)**. `validatedAnims` mis à jour (19 animations), `inProgressAnims` vidé.
+
+#### 18. Git
+- Commit + push sur `https://github.com/wodakim/Brawer_ascendant.git` (branche `main`) incluant : `punch_left`, `double_punch`, `headbutt`, nouvelle règle de mirroring (RÈGLES FONDAMENTALES), code couleur des boutons, mise à jour de ce journal.
+
 #### Prochaine étape
-**BATCH 3 — Poings (3 animations)** : premier batch d'attaques. Une animation à la fois (ou par petits lots validés, comme convenu pour la fin du Batch 2), validation utilisateur avant de continuer. Consulter `docs/ANTIGRAVITY_PROMPT_COMPLET.md` pour le détail des 3 animations du Batch 3.
+**BATCH 4 — Kicks (3 animations)** : `kick_right`, `kick_left`, `heavy_kick` (voir `ANIMATION_NAMES` et table ÉTAT DES ANIMATIONS). Consulter `docs/ANTIGRAVITY_PROMPT_COMPLET.md` pour le détail. Lot de ~3 avec validation groupée (rythme confirmé par l'utilisateur), en appliquant la nouvelle règle de mirroring (section 16) pour le couple `kick_left`/`kick_right`.
 
 ---
 
-*Dernière mise à jour : 2026-06-11 — Session 9 — Batch 2 (Locomotion) terminé et validé (7/7) : `run_forward`, `run_backward`, `step_forward`, `step_backward`, `turn_left`, `turn_right`. Correctifs moteur : ancrage dynamique au sol pour `moveX` (corrige le flottement) et `root.flipX` pour les pivots, tous deux non-régressifs. Poussé sur GitHub.*
+*Dernière mise à jour : 2026-06-11 — Session 9 — Batch 3 (Poings) terminé et validé (3/3) : `punch_left`, `double_punch`, `headbutt`. Règle de mirroring précisée (armUpper/armLower ne se sign-flip PAS, contrairement à torso/head/legUpper). 19/88 animations validées. Poussé sur GitHub.*

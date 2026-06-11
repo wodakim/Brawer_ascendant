@@ -407,6 +407,79 @@ ANIMATIONS_LIB["punch_right"] = {
     }
 };
 
+// B3.1 PUNCH_LEFT — Miroir de punch_right : bras gauche frappe, rotation du
+// torse inversée. armUpper et armLower (flexion coude, convention "négatif =
+// vers l'avant/l'adversaire" valable pour les deux côtés) gardent la même
+// forme de delta appliquée à la nouvelle baseline (PAS de sign-flip, sinon le
+// bras frappe en arrière — vérifié visuellement). hip.x/y (impulsion avant +
+// bob vertical) inchangés.
+ANIMATIONS_LIB["punch_left"] = {
+    duration: 30, loop: false,
+    tracks: {
+        torso: { rotation: [{f:0, v:0}, {f:10, v:15, e: 'easeOutQuad'}, {f:15, v:-25, e: 'easeInQuad'}, {f:30, v:0, e:'easeOutQuad'}] },
+        armUpper_L: { rotation: [{f:0, v:10}, {f:10, v:60}, {f:15, v:-70}, {f:20, v:-80}, {f:30, v:10}] },
+        armLower_L: { rotation: [{f:0, v:-20}, {f:10, v:-70}, {f:15, v:10}, {f:20, v:20}, {f:30, v:-20}] },
+        armUpper_R: { rotation: [{f:0, v:-10}, {f:10, v:-60}, {f:15, v:40}, {f:30, v:-10}] }, // Le bras droit recule pour faire balancier
+        armLower_R: { rotation: [{f:0, v:-30}, {f:10, v:-20}, {f:15, v:-90}, {f:30, v:-30}] },
+        head: { rotation: [{f:0, v:0}, {f:15, v:-10}, {f:30, v:0}] },
+        hip: {
+            x: [{f:0, v:0}, {f:10, v:-10}, {f:15, v:25}, {f:30, v:0}], // Impulsion de tout le corps vers l'avant
+            y: [{f:0, v:-70}, {f:10, v:-65}, {f:15, v:-75}, {f:30, v:-70}]
+        },
+        legUpper_L: { rotation: [{f:0, v:0}, {f:10, v:-15}, {f:15, v:10}, {f:30, v:0}] }, // Accompagnement des jambes
+        legUpper_R: { rotation: [{f:0, v:0}, {f:10, v:10}, {f:15, v:-15}, {f:30, v:0}] }
+    }
+};
+
+// B3.2 DOUBLE_PUNCH — punch_right (0-18, compressé x0.6) suivi de punch_left
+// (18-45, compressé x0.9) : le torse oscille entre les deux (-15 -> +25 -> 0
+// -> +15 -> -25 -> 0), conformément au spec. f18 = jonction où les deux
+// phases convergent vers la pose idle (continuité garantie sur toutes les
+// pistes). f0 == f45 == idle baseline.
+ANIMATIONS_LIB["double_punch"] = {
+    duration: 45, loop: false,
+    tracks: {
+        torso: { rotation: [{f:0, v:0}, {f:6, v:-15, e:'easeOutQuad'}, {f:9, v:25, e:'easeInQuad'}, {f:18, v:0, e:'easeOutQuad'}, {f:27, v:15, e:'easeOutQuad'}, {f:32, v:-25, e:'easeInQuad'}, {f:45, v:0, e:'easeOutQuad'}] },
+        armUpper_R: { rotation: [{f:0, v:-10}, {f:6, v:40}, {f:9, v:-90}, {f:12, v:-100}, {f:18, v:-10}, {f:27, v:-60}, {f:32, v:40}, {f:45, v:-10}] },
+        armLower_R: { rotation: [{f:0, v:-30}, {f:6, v:-80}, {f:9, v:0}, {f:12, v:10}, {f:18, v:-30}, {f:27, v:-20}, {f:32, v:-90}, {f:45, v:-30}] },
+        armUpper_L: { rotation: [{f:0, v:10}, {f:6, v:-40}, {f:9, v:60}, {f:18, v:10}, {f:27, v:60}, {f:32, v:-70}, {f:36, v:-80}, {f:45, v:10}] },
+        armLower_L: { rotation: [{f:0, v:-20}, {f:6, v:-10}, {f:9, v:-80}, {f:18, v:-20}, {f:27, v:-70}, {f:32, v:10}, {f:36, v:20}, {f:45, v:-20}] },
+        head: { rotation: [{f:0, v:0}, {f:9, v:10}, {f:18, v:0}, {f:32, v:-10}, {f:45, v:0}] },
+        hip: {
+            x: [{f:0, v:0}, {f:6, v:-10}, {f:9, v:25}, {f:18, v:0}, {f:27, v:-10}, {f:32, v:25}, {f:45, v:0}],
+            y: [{f:0, v:-70}, {f:6, v:-65}, {f:9, v:-75}, {f:18, v:-70}, {f:27, v:-65}, {f:32, v:-75}, {f:45, v:-70}]
+        },
+        legUpper_R: { rotation: [{f:0, v:0}, {f:6, v:15}, {f:9, v:-10}, {f:18, v:0}, {f:27, v:10}, {f:32, v:-15}, {f:45, v:0}] },
+        legUpper_L: { rotation: [{f:0, v:0}, {f:6, v:-10}, {f:9, v:15}, {f:18, v:0}, {f:27, v:-15}, {f:32, v:10}, {f:45, v:0}] }
+    }
+};
+
+// B3.3 HEADBUTT — Anticipation (léger recul du torse), puis le torse se penche
+// rapidement en avant (+40° à f8), la tête suit avec retard et dépasse
+// (+60° = +40+20 supplémentaires à f12), puis retour avec follow-through
+// (overshoot a f18) jusqu'à la pose idle (f28). Léger squash/stretch du torse
+// (compression a l'impact, étirement au rebond) + lunge avant via hip.x.
+ANIMATIONS_LIB["headbutt"] = {
+    duration: 28, loop: false,
+    tracks: {
+        torso: {
+            rotation: [{f:0, v:0}, {f:3, v:-10, e:'easeOutQuad'}, {f:8, v:40, e:'easeOutQuad'}, {f:12, v:25, e:'easeInQuad'}, {f:18, v:8}, {f:28, v:0, e:'easeOutQuad'}],
+            scaleY: [{f:0, v:1}, {f:8, v:0.95}, {f:12, v:1.05}, {f:28, v:1}]
+        },
+        head: { rotation: [{f:0, v:0}, {f:3, v:-5}, {f:8, v:5}, {f:12, v:60, e:'easeOutQuad'}, {f:18, v:20, e:'easeInQuad'}, {f:28, v:0}] },
+        hip: {
+            x: [{f:0, v:0}, {f:3, v:-8}, {f:8, v:18, e:'easeOutQuad'}, {f:18, v:5}, {f:28, v:0}],
+            y: [{f:0, v:-70}, {f:8, v:-66}, {f:12, v:-72}, {f:28, v:-70}]
+        },
+        armUpper_L: { rotation: [{f:0, v:10}, {f:8, v:25}, {f:18, v:0}, {f:28, v:10}] },
+        armUpper_R: { rotation: [{f:0, v:-10}, {f:8, v:-25}, {f:18, v:0}, {f:28, v:-10}] },
+        armLower_L: { rotation: [{f:0, v:-20}, {f:8, v:-30}, {f:18, v:-15}, {f:28, v:-20}] },
+        armLower_R: { rotation: [{f:0, v:-30}, {f:8, v:-40}, {f:18, v:-25}, {f:28, v:-30}] },
+        legUpper_L: { rotation: [{f:0, v:0}, {f:8, v:8}, {f:18, v:-3}, {f:28, v:0}] },
+        legUpper_R: { rotation: [{f:0, v:0}, {f:8, v:8}, {f:18, v:-3}, {f:28, v:0}] }
+    }
+};
+
 // 4. HIT LIGHT (Impact rapide, effet de fouet sur la tête et les bras)
 ANIMATIONS_LIB["hit_light"] = {
     duration: 25, loop: false,
@@ -1705,7 +1778,7 @@ function initUI() {
     // Génération des boutons d'animations
     const animContainer = document.getElementById('anim-buttons-container');
     // Suivi de l'avancement (voir docs/continuity.md, table "ÉTAT DES ANIMATIONS")
-    const validatedAnims = ["idle", "walk_forward", "punch_right", "hit_light", "hit_heavy", "ko_back", "idle_breathing", "prepare", "focus", "walk_backward", "run_forward", "run_backward", "step_forward", "step_backward", "turn_left", "turn_right"];
+    const validatedAnims = ["idle", "walk_forward", "punch_right", "hit_light", "hit_heavy", "ko_back", "idle_breathing", "prepare", "focus", "walk_backward", "run_forward", "run_backward", "step_forward", "step_backward", "turn_left", "turn_right", "punch_left", "double_punch", "headbutt"];
     const inProgressAnims = [];
 
     ANIMATION_NAMES.forEach(anim => {
