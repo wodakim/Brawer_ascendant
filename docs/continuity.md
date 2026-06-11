@@ -277,7 +277,7 @@ engine/assets/
 | 2 | Locomotion | 7 | ✅ 7/7 — `walk_backward`, `run_forward`, `run_backward`, `step_forward`, `step_backward`, `turn_left`, `turn_right` validés (Sessions 8-9) |
 | 3 | Poings | 3 | ✅ 3/3 — `punch_left`, `double_punch`, `headbutt` validés (Session 9) |
 | 4 | Kicks | 3 | ✅ 3/3 — `kick_right`, `kick_left`, `heavy_kick` validés (Session 9) |
-| 5 | Combo Chain | 5 | ⏳ 3/5 — `combo_1`, `combo_2`, `combo_3` validés (Session 9), reste `combo_4`, `combo_finisher` |
+| 5 | Combo Chain | 5 | ✅ 5/5 — `combo_1`, `combo_2`, `combo_3`, `combo_4`, `combo_finisher` validés (Session 9) |
 | 6 | Arme États | 2 | ⏳ À faire |
 | 7 | Arme Attaques | 5 | ⏳ À faire |
 | 8 | Perte d'arme | 5 | ⏳ À faire |
@@ -431,8 +431,8 @@ Puis ouvrir : `http://localhost:8080/engine/moteur_de_combat_et_rigging.html`
 | combo_1 | ✅ Batch 5 écrit | 22f | non | 5 | ✅ Validé (Session 9) |
 | combo_2 | ✅ Batch 5 écrit | 22f | non | 5 | ✅ Validé (Session 9) |
 | combo_3 | ✅ Batch 5 écrit | 22f | non | 5 | ✅ Validé (Session 9) |
-| combo_4 | ⏳ À faire | 22f | non | 5 | ❌ |
-| combo_finisher | ⏳ À faire | 50f | non | 5 | ❌ |
+| combo_4 | ✅ Batch 5 écrit | 22f | non | 5 | ✅ Validé (Session 9) |
+| combo_finisher | ✅ Batch 5 écrit | 50f | non | 5 | ✅ Validé (Session 9) |
 | weapon_draw | ⏳ À faire | 35f | non | 6 | ❌ |
 | weapon_idle | ⏳ À faire | 50f | oui | 6 | ❌ |
 | weapon_attack_light | ⏳ À faire | 28f | non | 7 | ❌ |
@@ -495,7 +495,7 @@ Puis ouvrir : `http://localhost:8080/engine/moteur_de_combat_et_rigging.html`
 | exit_arena | ⏳ À faire | 40f | non | 20 | ❌ |
 | taunt | ⏳ À faire | 55f | non | 20 | ❌ |
 
-**Compteur** : 25 validées (idle, walk_forward, punch_right, hit_light, hit_heavy, ko_back, idle_breathing, prepare, focus, walk_backward, run_forward, run_backward, step_forward, step_backward, turn_left, turn_right, punch_left, double_punch, headbutt, kick_right, kick_left, heavy_kick, combo_1, combo_2, combo_3) / 63 à implémenter / 88 total (`ANIMATION_NAMES`)
+**Compteur** : 27 validées (idle, walk_forward, punch_right, hit_light, hit_heavy, ko_back, idle_breathing, prepare, focus, walk_backward, run_forward, run_backward, step_forward, step_backward, turn_left, turn_right, punch_left, double_punch, headbutt, kick_right, kick_left, heavy_kick, combo_1, combo_2, combo_3, combo_4, combo_finisher) / 61 à implémenter / 88 total (`ANIMATION_NAMES`)
 *(+ `dodge_backward` : bonus déjà codé avec keyframes mais absent de `ANIMATION_NAMES`, hors compteur officiel)*
 
 ---
@@ -761,9 +761,20 @@ Suite à la validation du Batch 4, poursuite avec le Batch 5 (Combo Chain), trai
 #### 25. Git
 - Commit + push sur `https://github.com/wodakim/Brawer_ascendant.git` (branche `main`) incluant : `combo_1`, `combo_2`, `combo_3`, code couleur des boutons, mise à jour de ce journal.
 
+#### 26. Implémentation de `combo_4`, `combo_finisher` (Batch 5, sous-lot 2/2)
+- **`combo_4`** (22f, loop:false) : coup de pied droit "snap" — version compressée de `kick_right` (ratio ~0.63 = 22f/35f, mêmes formes de courbes rebasées sur 5 keyframes f0/f4/f8/f14/f22). Conclut l'alternance droite/gauche/droite/kick.
+- **`combo_finisher`** (50f, loop:false) : coup de grâce — grande anticipation (f8 : torse pivote en arrière -25° avec léger squash de "chargement" `scaleY`0.88/`scaleX`1.15), snap explosif (f18 : torse +35°, **squash & stretch exagéré** `scaleY`1.3/`scaleX`0.75 à l'impact, conservation de volume), **hip-push** marqué (`hip.x`+35) simulant le recul de l'adversaire, récupération lente (24f, f26→f50).
+- Vérification Playwright : les 2 animations transitionnent proprement vers `idle`, aucune erreur console/page, `f0 == f_end == pose idle` sur toutes les pistes, valeurs d'interpolation vérifiées mathématiquement (torso.scaleX/scaleY/rotation et hip.x à l'impact f18 cohérents avec easeOutQuad/easeInQuad et le décalage d'1 frame). Captures à l'impact confirment la jambe du kick vers SENSOR et un étirement diagonal très marqué du torse vers SENSOR pour le finisher.
+
+#### 27. Validation utilisateur
+`combo_4` et `combo_finisher` validés en bloc : *"Je valide, continue"* — **Batch 5 complet (5/5)**. `validatedAnims` mis à jour (27 animations), `inProgressAnims` vidé.
+
+#### 28. Git
+- Commit + push sur `https://github.com/wodakim/Brawer_ascendant.git` (branche `main`) incluant : `combo_4`, `combo_finisher`, code couleur des boutons, mise à jour de ce journal.
+
 #### Prochaine étape
-**BATCH 5 — Combo Chain, sous-lot 2/2 (2 animations)** : `combo_4` (kick, 22f) et `combo_finisher` (50f, squash & stretch exagéré `scaleY` 1.3 à l'impact, hip-push vers l'avant pour simuler le recul de l'adversaire). Voir `docs/ANTIGRAVITY_PROMPT_COMPLET.md` BATCH 5 pour le détail. Même interprétation "f0 == f_end == idle" que pour combo_1/2/3 (section 23).
+**BATCH 6 — Arme : Dégainer & États (2 animations)** : `weapon_draw` (35f, le bras droit va chercher l'arme à la ceinture/dans le dos via `hip`, l'arme apparaît dans `weaponSocket` à mi-chemin) et `weapon_idle` (50f, loop:true, idle avec arme tenue + légère oscillation du poignet `armLower_R` + balancement `weaponSocket.rotation` ±5°). **Nouveau** : nécessite d'animer explicitement `weaponSocket`/`weapon` — vérifier d'abord la structure de ces nodes dans `BASE_RIG`/le rendu avant de concevoir les keyframes. Voir `docs/ANTIGRAVITY_PROMPT_COMPLET.md` BATCH 6.
 
 ---
 
-*Dernière mise à jour : 2026-06-11 — Session 9 — Batch 5 sous-lot 1/2 validé (3/5) : `combo_1` (jab droit), `combo_2` (cross gauche, miroir), `combo_3` (crochet droit, coude plié + grand arc). 25/88 animations validées. Poussé sur GitHub.*
+*Dernière mise à jour : 2026-06-11 — Session 9 — Batch 5 complet et validé (5/5) : `combo_1` à `combo_finisher`. 27/88 animations validées. Poussé sur GitHub.*
