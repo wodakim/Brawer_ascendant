@@ -87,6 +87,12 @@
 - "Reset Fight" remet `x` à sa valeur initiale → tests répétables sans risque.
 - **À ajouter pour chaque future animation de locomotion** (`run_forward`, `run_backward`, `step_forward/backward`, etc.) avec une magnitude cohérente (run > walk).
 
+### Ancrage dynamique au sol pour les animations `moveX` — ajouté Session 9
+- **Problème** : l'ancien `Skeleton.update()` calculait la position des pieds une seule fois en pose de repos (`getFootOffsetY()`, rotations = 0) et figeait `root.y`. Pour de petites rotations de jambes (walk_forward ±20-30°) l'écart est négligeable, mais pour de grandes rotations (run_forward ±45°, genou plié à 65°) les jambes "raccourcissent" visuellement bien plus → le personnage flotte au-dessus du sol.
+- **Correctif** : `Skeleton.update(globalX, globalY, dynamicGround)` — si `dynamicGround` est `true`, le moteur fait une 1ère passe avec `root.y = 0` pour propager la pose animée courante via cinématique directe (`getDynamicFootOffsetY()`, basé sur `globalMatrix.transformPoint`), puis ancre le `root` pour que le pied le plus bas touche `globalY`. Si `false`, comportement statique inchangé (`getFootOffsetY()`).
+- **`Fighter.update()`** passe `dynamicGround = true` automatiquement dès que l'animation en cours a une propriété `moveX` (locomotion). Pour toutes les autres animations (combat, KO, idle...), comportement statique conservé à l'identique — vérifié non-régressif sur `ko_back`.
+- **Conséquence pour les futures animations** : toute animation de locomotion (`moveX` défini) sera automatiquement ancrée au sol, peu importe l'amplitude du rebond du bassin ou des flexions de jambes — pas d'action supplémentaire requise au-delà de définir `moveX`.
+
 ### Code couleur des boutons "PLAY" (panneau gauche, ~ligne 1496 du HTML)
 - 🟩 Vert (`#2e7d32`) : animation validée par l'utilisateur → ajouter le nom à `validatedAnims`
 - 🟥 Rouge (`#c62828`) : animation en cours de travail (pas encore validée) → ajouter le nom à `inProgressAnims`
@@ -247,7 +253,7 @@ engine/assets/
 | Batch | Thème | Nb Anims | Statut |
 |-------|-------|----------|--------|
 | 1 | Respiration & Préparation | 3 | ✅ Validé visuellement (Session 7) |
-| 2 | Locomotion | 7 | 🔄 1/7 — `walk_backward` ✅ Validé (Session 8) |
+| 2 | Locomotion | 7 | 🔄 2/7 — `walk_backward`, `run_forward` ✅ Validés (Sessions 8-9) |
 | 3 | Poings | 3 | ⏳ À faire |
 | 4 | Kicks | 3 | ⏳ À faire |
 | 5 | Combo Chain | 5 | ⏳ À faire |
@@ -389,7 +395,7 @@ Puis ouvrir : `http://localhost:8080/engine/moteur_de_combat_et_rigging.html`
 | prepare | ✅ Batch 1 écrit | 25f | non | 1 | ✅ Validé (Session 7) |
 | focus | ✅ Batch 1 écrit | 40f | non | 1 | ✅ Validé (Session 7) |
 | walk_backward | ✅ Batch 2 écrit | 44f | oui | 2 | ✅ Validé (Session 8) |
-| run_forward | ⏳ À faire | 28f | oui | 2 | ❌ |
+| run_forward | ✅ Batch 2 écrit | 28f | oui | 2 | ✅ Validé (Session 9) |
 | run_backward | ⏳ À faire | 32f | oui | 2 | ❌ |
 | step_forward | ⏳ À faire | 18f | non | 2 | ❌ |
 | step_backward | ⏳ À faire | 18f | non | 2 | ❌ |
@@ -468,7 +474,7 @@ Puis ouvrir : `http://localhost:8080/engine/moteur_de_combat_et_rigging.html`
 | exit_arena | ⏳ À faire | 40f | non | 20 | ❌ |
 | taunt | ⏳ À faire | 55f | non | 20 | ❌ |
 
-**Compteur** : 10 validées (idle, walk_forward, punch_right, hit_light, hit_heavy, ko_back, idle_breathing, prepare, focus, walk_backward) / 78 à implémenter / 88 total (`ANIMATION_NAMES`)
+**Compteur** : 11 validées (idle, walk_forward, punch_right, hit_light, hit_heavy, ko_back, idle_breathing, prepare, focus, walk_backward, run_forward) / 77 à implémenter / 88 total (`ANIMATION_NAMES`)
 *(+ `dodge_backward` : bonus déjà codé avec keyframes mais absent de `ANIMATION_NAMES`, hors compteur officiel)*
 
 ---
@@ -603,3 +609,44 @@ En testant en direct, l'utilisateur a constaté que `walk_backward` donnait just
 ---
 
 *Dernière mise à jour : 2026-06-11 — Session 8 — `walk_backward` corrigé (miroir temporel réel) et validé, système `moveX` (déplacement lié aux animations) ajouté, code couleur des boutons PLAY (vert=validé/rouge=en cours), poussé sur GitHub.*
+
+---
+
+### SESSION 9 — 2026-06-11 (heure locale)
+
+**Agent** : Claude Code (Sonnet 4.6)
+**Déclencheur** : Continuation du BATCH 2 — implémentation de `run_forward`, une animation à la fois avec validation utilisateur.
+
+#### 1. Implémentation de `run_forward`
+- 28f, loop:true, `moveX: 6` (≈2x `walk_forward`).
+- Bassin : rebond accentué Δ15px (`-70 → -85 → -70 → -85 → -70`, 2 appuis/cycle) vs Δ3px en walk_forward.
+- Torse : inclinaison avant permanente (`+10°…+14°`) vs oscillation autour de 0° en walk_forward.
+- Tête : contre-mouvement secondaire léger (±3°).
+- Jambes : foulée plus ample (±45° vs ±30°), genou plié à 65° pendant le ramené avant (même logique de phase que walk_forward).
+- Bras : coude plié ~90° en permanence (`armLower ≈ -80°/-95°`), épaules à ±50° (vs ±30°).
+- Vérification visuelle Playwright (caméra suiveuse, frames 0/4/7/10/14/17/21/24/28) : bouclage f0≈f28 cohérent, genou max 65°<70°, coude max 95°<120°, aucun os mort.
+
+#### 2. Retour utilisateur — flottement au sol
+"Presque parfait" mais le personnage **flotte au-dessus du sol** pendant la course. Consigne : corriger pour toutes les futures animations de ce type ("respecte le root").
+
+**Diagnostic** : `Skeleton.update()` utilisait `getFootOffsetY()` — calcul **statique**, basé sur `BASE_RIG` en pose de repos (rotations = 0), figeant `root.y`. Pour `walk_forward` (rotations ±20-30°) l'écart entre pose de repos et pose animée est faible, mais pour `run_forward` (rotations ±45°, genou à 65°) les jambes "raccourcissent" verticalement de façon importante par rapport à la pose de repos → `root.y` reste trop haut → le pied réel n'atteint plus le sol → flottement.
+
+#### 3. Correctif — ancrage dynamique au sol (voir RÈGLES FONDAMENTALES)
+- Nouvelle méthode `getDynamicFootOffsetY()` : calcule via cinématique directe (`globalMatrix.transformPoint`) la position Y réelle du bas de chaque pied dans la pose **animée** courante (root.y = 0), puis prend le pied le plus bas.
+- `Skeleton.update(globalX, globalY, dynamicGround)` : si `dynamicGround`, fait une 2e passe pour ancrer ce pied le plus bas sur `globalY` (le sol). Si `false`, comportement statique inchangé (`getFootOffsetY()` conservé tel quel).
+- `Fighter.update()` : passe `dynamicGround = true` automatiquement dès que l'animation en cours a `moveX` (= locomotion). Toutes les animations sans `moveX` (combat, KO, idle...) gardent l'ancien comportement.
+- **Régression vérifiée par Playwright** : `ko_back` (chute/sol) — `root.y` reste constant comme avant, poses f0/f25/f60 identiques à la version pré-correctif. `walk_forward` — toujours bien ancré, légère variation de `root.y` (±13px max) imperceptible.
+- `run_forward` re-vérifié : pied le plus bas systématiquement aligné sur le sol pour les 9 frames du cycle (f0→f28), plus aucun flottement visible.
+
+#### 4. Validation utilisateur
+`run_forward` validé après correctif (animation 2/7 du Batch 2). `validatedAnims` mis à jour (11 animations), `inProgressAnims` vidé.
+
+#### 5. Git
+- Commit + push sur `https://github.com/wodakim/Brawer_ascendant.git` (branche `main`) incluant : `run_forward`, ancrage dynamique au sol (`dynamicGround`/`moveX`), code couleur des boutons, mise à jour de ce journal.
+
+#### Prochaine étape
+**BATCH 2, animation 3/7** : `run_backward` (32f, loop:true) — même logique que `run_forward` mais miroir temporel (cf. méthode appliquée à `walk_backward`), `moveX` négatif cohérent (recul, magnitude entre `walk_backward.moveX = -2` et `-run_forward.moveX`). Une animation à la fois, validation utilisateur avant de continuer.
+
+---
+
+*Dernière mise à jour : 2026-06-11 — Session 9 — `run_forward` validé, correctif moteur d'ancrage dynamique au sol pour toutes les animations `moveX` (corrige le flottement, sans régression sur `ko_back`/`walk_forward`), poussé sur GitHub.*

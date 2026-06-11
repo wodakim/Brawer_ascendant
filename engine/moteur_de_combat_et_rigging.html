@@ -831,6 +831,34 @@ ANIMATIONS_LIB["walk_backward"] = {
     }
 };
 
+// B2.2 RUN_FORWARD — Foulée plus ample et plus rapide que walk_forward :
+// rebond du bassin accentué (+15px), bras pliés ~90° qui pompent
+// énergiquement, torse penché vers l'avant en permanence
+ANIMATIONS_LIB["run_forward"] = {
+    duration: 28, loop: true,
+    moveX: 6, // Course rapide : ~2x walk_forward
+    tracks: {
+        // Bassin : rebond accentué (Δ15px vs Δ3px en walk_forward), 2 appuis/cycle
+        hip: { y: [{f:0, v:-70}, {f:7, v:-85}, {f:14, v:-70}, {f:21, v:-85}, {f:28, v:-70}] },
+        // Torse : penché vers l'avant en permanence (vs walk_forward oscillant autour de 0)
+        torso: { rotation: [{f:0, v:10}, {f:14, v:14}, {f:28, v:10}] },
+        // Tête : secondary motion, contre-mouvement léger
+        head: { rotation: [{f:0, v:-3}, {f:14, v:3}, {f:28, v:-3}] },
+        // Jambes : foulée plus ample (45° vs 30°), genou fléchit pendant le ramené
+        // avant (même logique de phase que walk_forward, donc "vers l'avant")
+        legUpper_L: { rotation: [{f:0, v:45}, {f:14, v:-45}, {f:28, v:45}] },
+        legLower_L: { rotation: [{f:0, v:5}, {f:7, v:65}, {f:14, v:5}, {f:28, v:5}] },
+        legUpper_R: { rotation: [{f:0, v:-45}, {f:14, v:45}, {f:28, v:-45}] },
+        legLower_R: { rotation: [{f:0, v:5}, {f:14, v:5}, {f:21, v:65}, {f:28, v:5}] },
+        // Bras : coude plié ~90° en permanence (légère oscillation pour éviter
+        // l'os "mort"), épaules pompent avec une amplitude accrue (50° vs 30°)
+        armUpper_L: { rotation: [{f:0, v:-50}, {f:14, v:50}, {f:28, v:-50}] },
+        armUpper_R: { rotation: [{f:0, v:50}, {f:14, v:-50}, {f:28, v:50}] },
+        armLower_L: { rotation: [{f:0, v:-95}, {f:14, v:-80}, {f:28, v:-95}] },
+        armLower_R: { rotation: [{f:0, v:-80}, {f:14, v:-95}, {f:28, v:-80}] }
+    }
+};
+
 
 /**
  * ==========================================
@@ -958,21 +986,50 @@ class Skeleton {
     getFootOffsetY() {
         // Calcule le Y du bas du pied par rapport au root en pose de repos (rotations = 0)
         // Pied Gauche
-        const yL = (BASE_RIG.hip.y || 0) + (BASE_RIG.legUpper_L.y || 0) + (BASE_RIG.legLower_L.y || 0) + (BASE_RIG.foot_L.y || 0) + 
+        const yL = (BASE_RIG.hip.y || 0) + (BASE_RIG.legUpper_L.y || 0) + (BASE_RIG.legLower_L.y || 0) + (BASE_RIG.foot_L.y || 0) +
                    ((BASE_RIG.foot_L.h || 15) - (BASE_RIG.foot_L.pY || 5)) * (BASE_RIG.foot_L.scaleY !== undefined ? BASE_RIG.foot_L.scaleY : 1);
         // Pied Droit
-        const yR = (BASE_RIG.hip.y || 0) + (BASE_RIG.legUpper_R.y || 0) + (BASE_RIG.legLower_R.y || 0) + (BASE_RIG.foot_R.y || 0) + 
+        const yR = (BASE_RIG.hip.y || 0) + (BASE_RIG.legUpper_R.y || 0) + (BASE_RIG.legLower_R.y || 0) + (BASE_RIG.foot_R.y || 0) +
                    ((BASE_RIG.foot_R.h || 15) - (BASE_RIG.foot_R.pY || 5)) * (BASE_RIG.foot_R.scaleY !== undefined ? BASE_RIG.foot_R.scaleY : 1);
         return Math.max(yL, yR);
     }
 
-    update(globalX, globalY) {
+    getDynamicFootOffsetY() {
+        // Calcule le Y (monde, root.y = 0) du point le plus bas entre les deux pieds,
+        // dans la pose ANIMÉE courante, via cinématique directe (globalMatrix).
+        // Contrairement à getFootOffsetY (pose de repos, rotations = 0),
+        // ceci tient compte des rotations de jambes et du rebond du bassin de l'animation en cours.
+        const footL = this.nodes.foot_L;
+        const footR = this.nodes.foot_R;
+        const bottomL = footL.globalMatrix.transformPoint(new DOMPoint(footL.w / 2 - footL.pX, footL.h - footL.pY));
+        const bottomR = footR.globalMatrix.transformPoint(new DOMPoint(footR.w / 2 - footR.pX, footR.h - footR.pY));
+        return Math.max(bottomL.y, bottomR.y);
+    }
+
+    update(globalX, globalY, dynamicGround = false) {
         if(this.root) {
             this.root.x = globalX;
-            // Alignement automatique des pieds sur le sol (globalY)
-            this.root.y = globalY - this.getFootOffsetY();
             this.root.scaleX = this.dir; // Flip if needed
-            this.root.updateMatrix();
+
+            if(dynamicGround) {
+                // Animations de locomotion (moveX) : ancrage du pied le plus bas au sol
+                // via cinématique directe, quelle que soit l'amplitude du rebond du
+                // bassin ou des rotations de jambes (cf. docs/continuity.md "moveX")
+
+                // 1ère passe (root.y = 0) : propage la pose animée courante pour mesurer
+                // la position réelle des pieds
+                this.root.y = 0;
+                this.root.updateMatrix();
+
+                // 2nde passe : ancre le pied le plus bas au sol (globalY)
+                this.root.y = globalY - this.getDynamicFootOffsetY();
+                this.root.updateMatrix();
+            } else {
+                // Animations non-locomotion (combat, KO, idle...) : alignement statique
+                // sur la pose de repos, comme avant — root.y constant
+                this.root.y = globalY - this.getFootOffsetY();
+                this.root.updateMatrix();
+            }
         }
     }
 
@@ -1218,15 +1275,19 @@ class Fighter {
     }
 
     update() {
+        const currentAnim = this.animator.currentAnim;
+        const isLocomotion = !!(currentAnim && currentAnim.moveX);
+
         if(window.engineOptions.autoCombat) {
             this.updateAutoCombat();
-        } else if(this.animator.isPlaying && this.animator.currentAnim && this.animator.currentAnim.moveX) {
+        } else if(this.animator.isPlaying && isLocomotion) {
             // Prévisualisation manuelle (boutons PLAY) : déplacement cohérent avec le pas de l'animation
-            this.x += this.animator.currentAnim.moveX * this.dir;
+            this.x += currentAnim.moveX * this.dir;
         }
 
         this.animator.update();
-        this.skeleton.update(this.x, this.y);
+        // Animations de locomotion (moveX) : ancrage dynamique des pieds au sol (cf. moveX)
+        this.skeleton.update(this.x, this.y, isLocomotion);
     }
 }
 
@@ -1497,8 +1558,8 @@ function initUI() {
     // Génération des boutons d'animations
     const animContainer = document.getElementById('anim-buttons-container');
     // Suivi de l'avancement (voir docs/continuity.md, table "ÉTAT DES ANIMATIONS")
-    const validatedAnims = ["idle", "walk_forward", "punch_right", "hit_light", "hit_heavy", "ko_back", "idle_breathing", "prepare", "focus"];
-    const inProgressAnims = ["walk_backward"];
+    const validatedAnims = ["idle", "walk_forward", "punch_right", "hit_light", "hit_heavy", "ko_back", "idle_breathing", "prepare", "focus", "walk_backward", "run_forward"];
+    const inProgressAnims = [];
 
     ANIMATION_NAMES.forEach(anim => {
         const btn = document.createElement('button');
