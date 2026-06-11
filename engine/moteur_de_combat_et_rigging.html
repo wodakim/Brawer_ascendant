@@ -888,6 +888,34 @@ ANIMATIONS_LIB["run_backward"] = {
     }
 };
 
+// B2.4 STEP_FORWARD — Petit pas rapide sans cycle (loop:false), pour ajuster la
+// distance en combat. Part de la pose idle (jambes/bras au repos) et y revient
+// (f0 == f18) pour un enchaînement propre vers idle, le personnage ayant avancé
+// de moveX*18 px entre-temps.
+ANIMATIONS_LIB["step_forward"] = {
+    duration: 18, loop: false,
+    moveX: 5, // Pas rapide : entre walk_forward (3) et run_forward (6)
+    tracks: {
+        // Bassin : léger creux pendant le transfert de poids (1 seul appui)
+        hip: { y: [{f:0, v:-70}, {f:9, v:-74}, {f:18, v:-70}] },
+        // Torse : anticipation puis poussée vers l'avant, retour neutre
+        torso: { rotation: [{f:0, v:0}, {f:9, v:8}, {f:18, v:0}] },
+        // Tête : léger contre-mouvement pour stabiliser le regard
+        head: { rotation: [{f:0, v:0}, {f:9, v:-3}, {f:18, v:0}] },
+        // Jambe avant (R) : anticipation (léger recul), swing avant genou plié, repose au sol
+        legUpper_R: { rotation: [{f:0, v:0}, {f:6, v:-15}, {f:14, v:25}, {f:18, v:0}] },
+        legLower_R: { rotation: [{f:0, v:0}, {f:6, v:35}, {f:14, v:5}, {f:18, v:0}] },
+        // Jambe arrière (L) : pousse vers l'arrière (impulsion) puis revient en position neutre
+        legUpper_L: { rotation: [{f:0, v:0}, {f:9, v:-12}, {f:18, v:0}] },
+        legLower_L: { rotation: [{f:0, v:0}, {f:9, v:10}, {f:18, v:0}] },
+        // Bras : balancement opposé aux jambes, depuis la garde idle (10/-20/-10/-30)
+        armUpper_R: { rotation: [{f:0, v:-10}, {f:6, v:5}, {f:14, v:-25}, {f:18, v:-10}] },
+        armLower_R: { rotation: [{f:0, v:-30}, {f:6, v:-22}, {f:14, v:-35}, {f:18, v:-30}] },
+        armUpper_L: { rotation: [{f:0, v:10}, {f:9, v:20}, {f:18, v:10}] },
+        armLower_L: { rotation: [{f:0, v:-20}, {f:9, v:-28}, {f:18, v:-20}] }
+    }
+};
+
 
 /**
  * ==========================================
@@ -1587,7 +1615,7 @@ function initUI() {
     // Génération des boutons d'animations
     const animContainer = document.getElementById('anim-buttons-container');
     // Suivi de l'avancement (voir docs/continuity.md, table "ÉTAT DES ANIMATIONS")
-    const validatedAnims = ["idle", "walk_forward", "punch_right", "hit_light", "hit_heavy", "ko_back", "idle_breathing", "prepare", "focus", "walk_backward", "run_forward", "run_backward"];
+    const validatedAnims = ["idle", "walk_forward", "punch_right", "hit_light", "hit_heavy", "ko_back", "idle_breathing", "prepare", "focus", "walk_backward", "run_forward", "run_backward", "step_forward"];
     const inProgressAnims = [];
 
     ANIMATION_NAMES.forEach(anim => {
