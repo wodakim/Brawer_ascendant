@@ -26,37 +26,41 @@
 | Rotation | Positif = horaire |
 | ScaleX root | `1` = face droite, `-1` = retourné (fighter B) |
 
-### Pivots clés (ne changent jamais)
+### Pivots clés
 | Nœud | pX | pY | Signification |
 |------|----|----|---------------|
 | torso | 25 | 60 | bas du torse = hanche |
 | head | 25 | 45 | bas de la tête = cou |
-| armUpper L/R | 10 | 10 | haut bras = épaule |
+| armUpper_L | 10 | 10 | haut bras = épaule |
+| armUpper_R | 4 | 0 | haut bras = épaule *(recalibré Session 6, était 10/10)* |
 | armLower L/R | 9 | 10 | haut avant-bras = coude |
+| hand L/R | 11 | 5 | poignet |
 | legUpper L/R | 12 | 5 | haut jambe = hanche |
 | legLower L/R | 10 | 5 | haut mollet = genou |
-| foot L/R | 10 | 5 | haut pied = cheville |
+| foot L/R | 10 | 5 | haut pied = cheville (scaleY 1.5) |
 | weaponSocket | 5 | 5 | attaché à armLower_R |
 
-### BASE_RIG mémorisé (18 nœuds)
+### BASE_RIG mémorisé (20 nœuds — calibration Session 6 appliquée)
 | Nœud | z | w | h | pX | pY | x | y | parent |
 |------|---|---|---|----|----|---|---|--------|
 | root | 0 | 10 | 10 | 5 | 5 | 0 | 0 | null |
 | hip | 5 | 40 | 30 | 20 | 15 | 0 | -70 | root |
-| legUpper_L | 1 | 24 | 45 | 12 | 5 | -10 | 5 | hip |
+| legUpper_L | 1 | 24 | 45 | 12 | 5 | -4 | 5 | hip |
 | legLower_L | 1 | 20 | 50 | 10 | 5 | 0 | 40 | legUpper_L |
-| foot_L | 1 | 35 | 15 | 10 | 5 | 5 | 45 | legLower_L |
-| armUpper_L | 2 | 20 | 45 | 10 | 10 | -20 | -50 | torso |
-| armLower_L | 2 | 18 | 45 | 9 | 10 | 0 | 35 | armUpper_L |
+| foot_L | 1 | 35 | 15 | 10 | 5 | -3 | 48 | legLower_L *(scaleY 1.5)* |
+| armUpper_L | 0 | 20 | 45 | 10 | 10 | -20 | -50 | torso |
+| armLower_L | 0 | 18 | 45 | 9 | 10 | 0 | 37 | armUpper_L |
+| hand_L | 0 | 22 | 18 | 11 | 5 | 0 | 35 | armLower_L |
 | torso | 4 | 50 | 70 | 25 | 60 | 0 | -10 | hip |
 | head | 6 | 50 | 50 | 25 | 45 | 0 | -65 | torso |
 | face | 7 | 40 | 40 | 20 | 20 | 5 | -10 | head |
 | hair | 8 | 60 | 60 | 30 | 30 | 0 | -15 | head |
-| legUpper_R | 9 | 24 | 45 | 12 | 5 | 10 | 5 | hip |
+| legUpper_R | 9 | 24 | 45 | 12 | 5 | 1 | 5 | hip |
 | legLower_R | 9 | 20 | 50 | 10 | 5 | 0 | 40 | legUpper_R |
-| foot_R | 9 | 35 | 15 | 10 | 5 | 5 | 45 | legLower_R |
-| armUpper_R | 10 | 20 | 45 | 10 | 10 | 20 | -50 | torso |
-| armLower_R | 10 | 18 | 45 | 9 | 10 | 0 | 35 | armUpper_R |
+| foot_R | 9 | 35 | 15 | 10 | 5 | -1 | 49 | legLower_R *(scaleY 1.5)* |
+| armUpper_R | 10 | 20 | 45 | 4 | 0 | -1 | -48 | torso |
+| armLower_R | 10 | 18 | 45 | 9 | 10 | 13 | 48 | armUpper_R |
+| hand_R | 10 | 22 | 18 | 11 | 5 | 0 | 35 | armLower_R |
 | weaponSocket | 11 | 10 | 10 | 5 | 5 | 0 | 35 | armLower_R |
 | weapon | 12 | 100 | 20 | 20 | 10 | 0 | 0 | weaponSocket |
 
@@ -75,6 +79,19 @@
 - ✅ Anticipation avant attaque
 - ✅ Follow-through après action
 - ✅ Secondary motion (décalage 3-5 frames)
+
+### Système de déplacement lié aux animations (`moveX`) — ajouté Session 8
+- Propriété optionnelle sur une entrée de `ANIMATIONS_LIB` : `moveX` = déplacement en px/frame, dans le sens `dir` du fighter (positif = vers l'adversaire = "avance", négatif = recul/"backward").
+- Appliquée dans `Fighter.update()` uniquement quand `autoCombat` est OFF (mode prévisualisation manuelle via boutons PLAY) — évite le double comptage avec `updateAutoCombat()` qui gère déjà ses propres déplacements en combat.
+- Valeurs actuelles : `walk_forward.moveX = 3`, `walk_backward.moveX = -2` (magnitude réduite = pas raccourcis, cohérent avec l'amplitude de jambes réduite).
+- "Reset Fight" remet `x` à sa valeur initiale → tests répétables sans risque.
+- **À ajouter pour chaque future animation de locomotion** (`run_forward`, `run_backward`, `step_forward/backward`, etc.) avec une magnitude cohérente (run > walk).
+
+### Code couleur des boutons "PLAY" (panneau gauche, ~ligne 1496 du HTML)
+- 🟩 Vert (`#2e7d32`) : animation validée par l'utilisateur → ajouter le nom à `validatedAnims`
+- 🟥 Rouge (`#c62828`) : animation en cours de travail (pas encore validée) → ajouter le nom à `inProgressAnims`
+- Par défaut (bleu) : pas encore commencée
+- **Mettre à jour ces deux listes à chaque début de travail / validation d'une animation** — c'est le suivi visuel d'avancement demandé par l'utilisateur.
 
 ---
 
@@ -229,8 +246,8 @@ engine/assets/
 
 | Batch | Thème | Nb Anims | Statut |
 |-------|-------|----------|--------|
-| 1 | Respiration & Préparation | 3 | ✅ Écrit — validation requise |
-| 2 | Locomotion | 7 | ⏳ À faire |
+| 1 | Respiration & Préparation | 3 | ✅ Validé visuellement (Session 7) |
+| 2 | Locomotion | 7 | 🔄 1/7 — `walk_backward` ✅ Validé (Session 8) |
 | 3 | Poings | 3 | ⏳ À faire |
 | 4 | Kicks | 3 | ⏳ À faire |
 | 5 | Combo Chain | 5 | ⏳ À faire |
@@ -368,10 +385,10 @@ Puis ouvrir : `http://localhost:8080/engine/moteur_de_combat_et_rigging.html`
 | hit_heavy | ✅ Existant | 40f | non | — | — |
 | ko_back | ✅ Existant | 60f | non | — | — |
 | dodge_backward | ✅ Bonus (non listé) | 30f | non | — | — |
-| idle_breathing | ✅ Batch 1 écrit | 80f | oui | 1 | ⏳ Validation requise |
-| prepare | ✅ Batch 1 écrit | 25f | non | 1 | ⏳ Validation requise |
-| focus | ✅ Batch 1 écrit | 40f | non | 1 | ⏳ Validation requise |
-| walk_backward | ⏳ À faire | 44f | oui | 2 | ❌ |
+| idle_breathing | ✅ Batch 1 écrit | 80f | oui | 1 | ✅ Validé (Session 7) |
+| prepare | ✅ Batch 1 écrit | 25f | non | 1 | ✅ Validé (Session 7) |
+| focus | ✅ Batch 1 écrit | 40f | non | 1 | ✅ Validé (Session 7) |
+| walk_backward | ✅ Batch 2 écrit | 44f | oui | 2 | ✅ Validé (Session 8) |
 | run_forward | ⏳ À faire | 28f | oui | 2 | ❌ |
 | run_backward | ⏳ À faire | 32f | oui | 2 | ❌ |
 | step_forward | ⏳ À faire | 18f | non | 2 | ❌ |
@@ -451,7 +468,8 @@ Puis ouvrir : `http://localhost:8080/engine/moteur_de_combat_et_rigging.html`
 | exit_arena | ⏳ À faire | 40f | non | 20 | ❌ |
 | taunt | ⏳ À faire | 55f | non | 20 | ❌ |
 
-**Compteur** : 7 existantes / 69 à implémenter / 76 total
+**Compteur** : 10 validées (idle, walk_forward, punch_right, hit_light, hit_heavy, ko_back, idle_breathing, prepare, focus, walk_backward) / 78 à implémenter / 88 total (`ANIMATION_NAMES`)
+*(+ `dodge_backward` : bonus déjà codé avec keyframes mais absent de `ANIMATION_NAMES`, hors compteur officiel)*
 
 ---
 
@@ -494,3 +512,94 @@ Puis ouvrir : `http://localhost:8080/engine/moteur_de_combat_et_rigging.html`
 ---
 
 *Dernière mise à jour : 2026-06-11 10:28 — Session 6 — Calibration du Rig avec scaleY: 1.5 uniquement sur les pieds, correctif UI sur les sliders et alignement automatique et dynamique des pieds sur le sol.*
+
+---
+
+### SESSION 7 — 2026-06-11 (heure locale)
+
+**Agent** : Claude Code (Sonnet 4.6)
+**Déclencheur** : Mise en place d'un workflow professionnel (versioning) + vérification visuelle de l'impact de la recalibration Session 6.
+
+#### 1. Mise en place du dépôt Git
+- `git init` à la racine `D:\Brawler_ascendant_clear\`
+- `.gitignore` créé (`.claude/settings.local.json`, `Thumbs.db`, `.DS_Store`)
+- Identité locale (repo uniquement) : `wodakim` / `montano.mickael@gmail.com`
+- Commit initial `625fe8d` (27 fichiers, 3193 insertions)
+- Remote ajouté et push effectué : `https://github.com/wodakim/Brawer_ascendant.git`, branche `main`
+- **Objectif** : pouvoir diff/rollback entre sessions multi-agents (Antigravity ↔ Claude Code) sans perdre de travail.
+
+#### 2. Vérification visuelle — impact de la recalibration Session 6
+**Question** : les changements `armUpper_R` (pivot `(10,10)→(4,0)`) et `armLower_R` (position `(0,35)→(13,48)`) ont-ils cassé une des 8 animations existantes ?
+
+**Méthode** :
+- Serveur HTTP local (`python -m http.server --directory D:\Brawler_ascendant_clear`) pour contourner le CORS sur les SVG
+- Navigateur headless Playwright/Chromium
+- Pause + "Frame +1" du moteur (contrôles debug existants) pour capturer des frames précises
+- Captures zoomées sur Fighter A, bones+pivots affichés, hitboxes/labels masqués pour la lisibilité
+- Animations testées : `idle`, `idle_breathing`, `punch_right` (f0/f5/f10/f15/f18/f20/f22/f25/f30), `hit_light`, `hit_heavy`, `ko_back`, `prepare`, `focus`
+
+**Résultat : ✅ AUCUNE RÉGRESSION**
+- La chaîne épaule (`armUpper_R`) → coude (`armLower_R`) → poignet (`hand_R`) reste continue et anatomiquement cohérente sur toutes les frames testées, y compris aux rotations extrêmes (`-100°` à `+110°`).
+- `punch_right` : anticipation (poing remonte près de l'épaule, f10) → impact (bras tendu vers l'adversaire, f15-22) → retour idle (f25-30) — tout s'enchaîne correctement.
+- `hit_light` / `hit_heavy` / `ko_back` : poses extrêmes (corps qui part en arrière/se plie en deux) sont **voulues par les keyframes** (rotations torso/head/hip très fortes dès f4), pas un artefact du rig.
+- **Conclusion** : Batch 1 (`idle_breathing`, `prepare`, `focus`) validé visuellement. La recalibration Session 6 est saine, on peut continuer sereinement sur les batchs suivants.
+
+#### 3. Point élucidé — "sabre diagonal" en idle
+Le nœud `weapon` (100×20, enfant de `weaponSocket`) n'a **aucun sprite SVG associé** (arme non équipée). Avec les hitboxes affichées, son rectangle de hitbox apparaît en vert et suit la rotation du bras → impression de "sabre" qui dépasse à un angle. Avec les hitboxes masquées, on ne voit que son point pivot isolé relié par une ligne bleue à `weaponSocket`. **Comportement normal d'un slot d'arme vide, pas un bug.**
+
+#### 4. Point secondaire (cosmétique debug, à surveiller)
+Un point pivot isolé (relié par une ligne bleue) apparaît parfois loin du pied (`foot_R`/`foot_L`) dans les poses extrêmes (`ko_back`, `hit_light`). Probablement lié au `scaleY: 1.5` des pieds (item de calibration déjà identifié Session 6). N'affecte pas le rendu du sprite — uniquement l'affichage debug du pivot. À surveiller mais non bloquant.
+
+#### Prochaine étape
+Reprise du workflow batch-par-batch du prompt maître : **BATCH 2 — Locomotion**, en commençant par `walk_backward` (miroir direct de `walk_forward`, déjà validé), une animation à la fois avec validation utilisateur entre chaque.
+
+---
+
+*Dernière mise à jour : 2026-06-11 — Session 7 — Repo Git initialisé et poussé sur GitHub, vérification visuelle complète post-Session 6 (aucune régression), Batch 1 validé.*
+
+---
+
+### SESSION 8 — 2026-06-11 (heure locale)
+
+**Agent** : Claude Code (Sonnet 4.6)
+**Déclencheur** : Continuation du BATCH 2 — implémentation de `walk_backward`, une animation à la fois avec validation utilisateur (cf. consigne explicite : ne jamais enchaîner sans validation).
+
+#### 1. Implémentation initiale de `walk_backward`
+- 44f, loop:true. Repris la structure de `walk_forward` avec : torse penché en arrière en continu (`-10°…-2°` au lieu de l'oscillation `+5°/-5°`), amplitudes de jambes/bras réduites (~20° vs 30°, flexion genou/coude max ~35-38° vs 50°) pour "pas raccourcis", tête en contre-mouvement secondaire (±2°, déphasé).
+- Vérification visuelle Playwright (frames 0/6/11/17/22/28/33/39/44) : poses plausibles, bouclage f0≈f44 cohérent.
+
+#### 2. Question utilisateur — le sens "backward" est-il correct ?
+L'utilisateur a remarqué que l'animation "donnait l'impression d'avancer", et a demandé si le personnage devait être retourné avant de marcher en arrière.
+
+**Vérifications dans le code** :
+- `updateAutoCombat()` (ligne ~1184-1188) recalcule `dir`/`root.scaleX` à chaque frame pour que le perso fasse **toujours face à l'adversaire** → pas de retournement à gérer dans l'animation elle-même.
+- La spec du prompt maître dit "`walk_backward` = `walk_forward` **miroir**" → interprété comme une inversion temporelle des pistes asymétriques (`legLower_L/R`, flexion du genou), les pistes symétriques (`legUpper`, bras) étant inchangées par construction sous inversion temporelle.
+
+**Correction appliquée** : échange des timings de flexion entre `legLower_L` (bend f11→f33) et `legLower_R` (bend f33→f11) — chaque genou plie désormais pendant la phase de "ramené arrière" du cycle au lieu de la phase d'avancée.
+
+#### 3. Retour utilisateur après test live — le vrai problème
+En testant en direct, l'utilisateur a constaté que `walk_backward` donnait juste l'impression d'"avancer plus doucement que `run_forward`" — le cycle de jambes en lui-même est ambigu sur la direction dans un rig 2D *sur place* (sans translation, sans contact pied-sol simulé). Proposition de l'utilisateur : **lier le déplacement du personnage au pas de l'animation**, en s'appuyant sur "Reset Fight" qui réinitialise les positions sans risque.
+
+#### 4. Système `moveX` (déplacement lié à l'animation) — voir RÈGLES FONDAMENTALES
+- `walk_forward.moveX = 3` (avance vers `dir`), `walk_backward.moveX = -2` (recul, magnitude réduite).
+- `Fighter.update()` : applique `x += moveX * dir` quand `autoCombat` est OFF (mode boutons PLAY), sans toucher à la logique `updateAutoCombat()` existante.
+- Vérifié par Playwright en temps réel non-pausé : `x` passe de `348 → 226 → 106` sur 2s (≈ -2px/frame, stable après le bouclage de l'animation à 44f) ; `walk_forward` avance bien à +3px/frame ; "Reset Fight" remet `x` à 348.
+
+#### 5. Code couleur des boutons "PLAY" — voir RÈGLES FONDAMENTALES
+- 🟩 Vert (`#2e7d32`) sur les 9 animations déjà validées + `walk_backward` (10 au total après validation de cette session).
+- 🟥 Rouge (`#c62828`) sur l'animation en cours de travail (aucune au moment du commit — sera utilisé pour la prochaine, ex. `run_forward`).
+- Remplace l'ancien highlight statique `importantAnims` (orange).
+- Vérifié par capture d'écran du panneau de boutons (10 boutons verts dont `WALK BACKWARD`, le reste en bleu par défaut).
+
+#### 6. Validation utilisateur
+`walk_backward` validé ("c'est parfait pour le moment") avec le système `moveX` actif.
+
+#### 7. Git
+- Commit + push sur `https://github.com/wodakim/Brawer_ascendant.git` (branche `main`) incluant : `walk_backward` (corrigé), système `moveX`, code couleur des boutons, mise à jour de ce journal.
+
+#### Prochaine étape
+**BATCH 2, animation 2/7** : `run_forward` (28f, loop:true) — "Oscillation hip plus prononcée (+15px), bras pliés à 90° qui pompent énergiquement, légère inclinaison du torse vers l'avant", + `moveX` cohérent (> `walk_forward.moveX = 3`). Une animation à la fois, validation utilisateur avant de continuer.
+
+---
+
+*Dernière mise à jour : 2026-06-11 — Session 8 — `walk_backward` corrigé (miroir temporel réel) et validé, système `moveX` (déplacement lié aux animations) ajouté, code couleur des boutons PLAY (vert=validé/rouge=en cours), poussé sur GitHub.*

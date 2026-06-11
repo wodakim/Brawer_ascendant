@@ -373,6 +373,7 @@ ANIMATIONS_LIB["idle"] = {
 // 2. WALK (Cycle de marche - Correction des genoux)
 ANIMATIONS_LIB["walk_forward"] = {
     duration: 40, loop: true,
+    moveX: 3, // Déplacement (px/frame, dans le sens "dir") cohérent avec le pas
     tracks: {
         hip: { y: [{f:0, v:-70}, {f:10, v:-73}, {f:20, v:-70}, {f:30, v:-73}, {f:40, v:-70}] },
         torso: { rotation: [{f:0, v:5}, {f:20, v:-5}, {f:40, v:5}] },
@@ -799,6 +800,37 @@ ANIMATIONS_LIB["focus"] = {
     }
 };
 
+// ============================================================
+// BATCH 2 — LOCOMOTION AVANT/ARRIÈRE
+// ============================================================
+
+// B2.1 WALK_BACKWARD — Miroir de walk_forward : torse penché légèrement
+// vers l'arrière (rotation négative), pas plus courts (amplitude réduite)
+ANIMATIONS_LIB["walk_backward"] = {
+    duration: 44, loop: true,
+    moveX: -2, // Recul (sens opposé à "dir"), magnitude réduite : pas raccourcis
+    tracks: {
+        hip: { y: [{f:0, v:-70}, {f:11, v:-73}, {f:22, v:-70}, {f:33, v:-73}, {f:44, v:-70}] },
+        // Torse : reste penché en arrière en permanence (vs idle 0 / walk_forward +5..-5)
+        torso: { rotation: [{f:0, v:-10}, {f:22, v:-2}, {f:44, v:-10}] },
+        // Tête : secondary motion, suit le torse avec un léger retard
+        head: { rotation: [{f:0, v:2}, {f:11, v:-2}, {f:33, v:2}, {f:44, v:2}] },
+        // Jambes : oscillation legUpper symétrique donc identique à walk_forward
+        // (inchangée par inversion temporelle), mais flexion du genou (legLower)
+        // déplacée sur la phase de ramené arrière au lieu d'avancée
+        // -> inversion temporelle réelle = lecture "marche à reculons"
+        legUpper_L: { rotation: [{f:0, v:20}, {f:22, v:-20}, {f:44, v:20}] },
+        legLower_L: { rotation: [{f:0, v:0}, {f:22, v:0}, {f:33, v:35}, {f:44, v:0}] },
+        legUpper_R: { rotation: [{f:0, v:-20}, {f:22, v:20}, {f:44, v:-20}] },
+        legLower_R: { rotation: [{f:0, v:0}, {f:11, v:35}, {f:22, v:0}, {f:44, v:0}] },
+        // Bras : balancier opposé aux jambes, amplitude réduite
+        armUpper_L: { rotation: [{f:0, v:-20}, {f:22, v:20}, {f:44, v:-20}] },
+        armUpper_R: { rotation: [{f:0, v:20}, {f:22, v:-20}, {f:44, v:20}] },
+        armLower_L: { rotation: [{f:0, v:-25}, {f:22, v:-38}, {f:44, v:-25}] },
+        armLower_R: { rotation: [{f:0, v:-35}, {f:22, v:-22}, {f:44, v:-35}] }
+    }
+};
+
 
 /**
  * ==========================================
@@ -1188,8 +1220,11 @@ class Fighter {
     update() {
         if(window.engineOptions.autoCombat) {
             this.updateAutoCombat();
+        } else if(this.animator.isPlaying && this.animator.currentAnim && this.animator.currentAnim.moveX) {
+            // Prévisualisation manuelle (boutons PLAY) : déplacement cohérent avec le pas de l'animation
+            this.x += this.animator.currentAnim.moveX * this.dir;
         }
-        
+
         this.animator.update();
         this.skeleton.update(this.x, this.y);
     }
@@ -1461,13 +1496,19 @@ function initUI() {
 
     // Génération des boutons d'animations
     const animContainer = document.getElementById('anim-buttons-container');
-    const importantAnims = ["idle", "walk_forward", "punch_right", "hit_light", "hit_heavy", "ko_back", "dodge_backward"];
-    
+    // Suivi de l'avancement (voir docs/continuity.md, table "ÉTAT DES ANIMATIONS")
+    const validatedAnims = ["idle", "walk_forward", "punch_right", "hit_light", "hit_heavy", "ko_back", "idle_breathing", "prepare", "focus"];
+    const inProgressAnims = ["walk_backward"];
+
     ANIMATION_NAMES.forEach(anim => {
         const btn = document.createElement('button');
         btn.innerText = "PLAY " + anim.replace(/_/g, ' ').toUpperCase();
-        if(importantAnims.includes(anim)) btn.style.background = "#d2691e"; // Highlight real ones
-        
+        if(validatedAnims.includes(anim)) {
+            btn.style.background = "#2e7d32"; // Vert : validée
+        } else if(inProgressAnims.includes(anim)) {
+            btn.style.background = "#c62828"; // Rouge : en cours de travail
+        }
+
         btn.addEventListener('click', () => {
             fighterA.animator.play(anim, () => fighterA.animator.play("idle"));
         });
