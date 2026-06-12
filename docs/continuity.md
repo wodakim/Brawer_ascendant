@@ -801,6 +801,7 @@ Suite à la validation du Batch 4, poursuite avec le Batch 5 (Combo Chain), trai
 
 #### 2. Retour utilisateur — coude "cassé" sur `weapon_draw` en Unarmed
 L'utilisateur signale qu'en style `unarmed`, le bras droit de `weapon_draw` a le coude "dans le mauvais sens" (effet bras cassé). Cause : la piste originale `armLower_R` montait jusqu'à -115° au pic (f18), hors de la plage naturelle de flexion du coude. **Correctif** : nouvelles courbes `armUpper_R` (-10→-70→-95→-40→-10) et `armLower_R` (-30→-15→10→-20→-30) — le bras tend vers l'avant (f8) puis se replie en travers du torse pour "tirer" l'arme (pic f18), avant de redescendre en garde (f27→f35). Vérifié par capture d'écran : plus de coude désarticulé.
+*(Cette version — "Candidat A" — a finalement été abandonnée au profit de la version originale, à la demande explicite de l'utilisateur : voir point 7.)*
 
 #### 3. Retour utilisateur — bug persistant : coude devant le visage, main devant la hanche
 Second retour : le problème persiste, coude quasi devant le visage et main juste devant la hanche. **Erreur de lecture** : ce second retour décrivait en réalité la pose `unarmed` de **`weapon_idle`** (lancée juste après `weapon_draw`), pas `weapon_draw` lui-même — confusion qui a conduit à une tentative de correctif erronée sur `weapon_draw` (cassant la version du point 2, pourtant correcte), rapidement identifiée et annulée par l'utilisateur ("tu viens de casser la belle animation weapon draw"). **Leçon retenue** : bien lire/distinguer à QUELLE animation se rapporte chaque retour utilisateur quand plusieurs sont mentionnés en succession ; pas de "rustines" numériques non vérifiées sur un fichier moteur destiné à être injecté dans un projet de jeu.
@@ -814,16 +815,29 @@ Vérifié (aucune erreur console/page) :
 - Identique via `weapon_draw → weapon_idle` ET via clic direct "PLAY WEAPON IDLE", sur tout le cycle de 50f.
 - Régression : poses `melee`/`ranged`/`thrown` de `weapon_idle` strictement inchangées.
 
-#### 5. Validation utilisateur
-- *"je valide le weapon idle en ce sens"* — nouvelle garde `unarmed` validée.
-- `weapon_draw` (version du point 2) confirmé comme version à conserver ("Version actuelle (Candidat A, déjà en place)"). **Batch 6 complet (2/2)**. `validatedAnims` mis à jour (29 animations), `inProgressAnims` vidé.
+#### 5. Validation utilisateur (partielle — revue au point 7)
+- *"je valide le weapon idle en ce sens"* — nouvelle garde `unarmed` validée (définitif).
+- Pour `weapon_draw`, une question de clarification a d'abord fait conclure (à tort) que la version du point 2 ("Candidat A") devait être conservée. **Lecture incorrecte** : le message suivant de l'utilisateur a immédiatement précisé qu'il n'avait validé ni cette version ni le commit qui en découlait — voir point 7 pour la résolution finale.
 
-#### 6. Git
-- Commit + push sur `https://github.com/wodakim/Brawer_ascendant.git` (branche `main`) incluant : `weapon_draw`, `weapon_idle`, architecture `weaponStyle`/`WEAPON_HOLD_STYLES`/`WEAPON_HOLD_OVERLAY_TARGETS`/`WEAPON_REACH`, code couleur des boutons, mise à jour de ce journal.
+#### 6. Git (commit initial, corrigé au point 7)
+- Un premier commit (`bf501f8`) a été poussé sur `https://github.com/wodakim/Brawer_ascendant.git` (branche `main`) en présentant à tort `weapon_draw` (Candidat A) comme validé, en plus de `weapon_idle`, l'architecture `weaponStyle`/`WEAPON_HOLD_STYLES`/`WEAPON_HOLD_OVERLAY_TARGETS`/`WEAPON_REACH` et le code couleur des boutons (ces derniers éléments restent corrects). Un commit correctif a suivi (point 7), **sans amender** `bf501f8`.
+
+#### 7. Retour utilisateur définitif — retour à la version originale de `weapon_draw`
+L'utilisateur précise : il veut la version de `weapon_draw` d'AVANT le correctif du point 2 (Candidat A) — celle qui donne l'impression que le personnage "cherche l'arme dans sa poche/ceinture et la sort" — et confirme qu'en `unarmed`, `weapon_draw` doit quand même se jouer intégralement avant de basculer sur la garde `weapon_idle.unarmed` (point 4).
+
+**Restauration** : pistes `armUpper_R`/`armLower_R` de `weapon_draw` remises aux valeurs originales (pic f18 : `armUpper_R=75°`, `armLower_R=-115°`), conformes au commentaire de bloc jamais modifié (lignes ~766-776) qui décrivait déjà ce design ("le bras droit plonge vers la hanche/ceinture pour saisir l'arme").
+
+Vérifié (aucune erreur console/page, captures d'écran sans overlays debug) :
+- f18 : `hand_R≈(162,396)` ≈ `hip≈(180,395)` — la main atteint la hanche au moment exact où l'arme apparaît (pop `weapon.scaleX/scaleY: 0→1` au f19) → confirme visuellement "il sort l'arme de la ceinture/poche".
+- Pistes `armUpper_R`/`armLower_R` identiques sur les 4 `weaponStyle` à f18 (`hand_R≈(162.16,396.32)`, rot=-109.3) — `weapon_draw` reste bien indépendant du style équipé.
+- Transition `weapon_draw → weapon_idle` revérifiée : garde `unarmed` du point 4 inchangée ; régression `melee`/`ranged`/`thrown` (`_into_idle`) identiques aux valeurs déjà validées.
+- Architecture déjà conforme au point (b) demandé par l'utilisateur : le handler PLAY enchaîne toujours `weapon_draw → weapon_idle` quel que soit `weaponStyle` (`anim === 'weapon_draw' ? 'weapon_idle' : 'idle'`) — aucun code supplémentaire requis.
+
+**Validation utilisateur** : *"parfait, je valide"*. **Batch 6 réellement complet et validé (2/2)** : `weapon_idle` (garde `unarmed` du point 4) + `weapon_draw` (version originale restaurée, point 7). `validatedAnims` mis à jour (29 animations dont `weapon_draw`), `inProgressAnims` vidé. Nouveau commit correctif poussé sur `https://github.com/wodakim/Brawer_ascendant.git` (sans amender `bf501f8`).
 
 #### Prochaine étape
 **BATCH 7 — Arme : Attaques (5 animations)** : `weapon_attack_light` (28f), `weapon_attack_medium` (35f), `weapon_attack_heavy` (50f), `weapon_combo` (40f), `weapon_critical` (60f) — toutes non-loop. Voir "IDÉES FUTURES" ci-dessus pour la question en suspens des animations de combat dépendantes de l'arme (`punch_right`, etc.) — **hors scope de Batch 7**, à traiter comme un batch dédié ultérieur.
 
 ---
 
-*Dernière mise à jour : 2026-06-12 — Session 10 — Batch 6 complet et validé (2/2) : `weapon_draw`, `weapon_idle` + architecture `weaponStyle`/`WEAPON_HOLD_STYLES`. 29/88 animations validées. Poussé sur GitHub.*
+*Dernière mise à jour : 2026-06-12 — Session 10 — Batch 6 complet et validé (2/2) : `weapon_idle` (garde `unarmed` dérivée de la géométrie du rig) + `weapon_draw` (version originale restaurée à la demande de l'utilisateur, point 7) + architecture `weaponStyle`/`WEAPON_HOLD_STYLES`. 29/88 animations validées. Commit correctif poussé sur GitHub (sans amender le commit initial).*

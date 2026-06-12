@@ -785,11 +785,11 @@ ANIMATIONS_LIB["weapon_draw"] = {
         },
         legUpper_R: { rotation: [{f:0, v:0}, {f:8, v:5}, {f:18, v:8}, {f:27, v:3}, {f:35, v:0}] },
         legUpper_L: { rotation: [{f:0, v:0}, {f:8, v:-3}, {f:18, v:-5}, {f:27, v:-2}, {f:35, v:0}] },
-        // Bras droit : tend vers l'avant (f8) puis remonte/replie en travers du
-        // torse pour "tirer" l'arme (f18, pic), avant de redescendre en position
-        // de garde (f27→f35).
-        armUpper_R: { rotation: [{f:0, v:-10}, {f:8, v:-70, e:'easeOutQuad'}, {f:18, v:-95, e:'easeInQuad'}, {f:27, v:-40}, {f:35, v:-10, e:'easeOutQuad'}] },
-        armLower_R: { rotation: [{f:0, v:-30}, {f:8, v:-15, e:'easeOutQuad'}, {f:18, v:10, e:'easeInQuad'}, {f:27, v:-20}, {f:35, v:-30}] },
+        // Bras droit : plonge vers la hanche/ceinture (pic f18, main proche de la
+        // hanche — c'est là que l'arme apparaît via le pop weaponSocket ci-dessous),
+        // puis remonte vers une position de garde (f27→f35).
+        armUpper_R: { rotation: [{f:0, v:-10}, {f:8, v:50, e:'easeOutQuad'}, {f:18, v:75, e:'easeInQuad'}, {f:27, v:20}, {f:35, v:-10, e:'easeOutQuad'}] },
+        armLower_R: { rotation: [{f:0, v:-30}, {f:8, v:-85, e:'easeOutQuad'}, {f:18, v:-115, e:'easeInQuad'}, {f:27, v:-55}, {f:35, v:-30}] },
         armUpper_L: { rotation: [{f:0, v:10}, {f:8, v:-15}, {f:18, v:20}, {f:27, v:5}, {f:35, v:10}] }, // Contre-balancier
         armLower_L: { rotation: [{f:0, v:-20}, {f:8, v:-35}, {f:18, v:-10}, {f:27, v:-25}, {f:35, v:-20}] },
         weapon: {
@@ -2158,7 +2158,7 @@ function initUI() {
     // Génération des boutons d'animations
     const animContainer = document.getElementById('anim-buttons-container');
     // Suivi de l'avancement (voir docs/continuity.md, table "ÉTAT DES ANIMATIONS")
-    const validatedAnims = ["idle", "walk_forward", "punch_right", "hit_light", "hit_heavy", "ko_back", "idle_breathing", "prepare", "focus", "walk_backward", "run_forward", "run_backward", "step_forward", "step_backward", "turn_left", "turn_right", "punch_left", "double_punch", "headbutt", "kick_right", "kick_left", "heavy_kick", "combo_1", "combo_2", "combo_3", "combo_4", "combo_finisher", "weapon_draw", "weapon_idle"];
+    const validatedAnims = ["idle", "walk_forward", "punch_right", "hit_light", "hit_heavy", "ko_back", "idle_breathing", "prepare", "focus", "walk_backward", "run_forward", "run_backward", "step_forward", "step_backward", "turn_left", "turn_right", "punch_left", "double_punch", "headbutt", "kick_right", "kick_left", "heavy_kick", "combo_1", "combo_2", "combo_3", "combo_4", "combo_finisher", "weapon_idle", "weapon_draw"];
     const inProgressAnims = [];
 
     ANIMATION_NAMES.forEach(anim => {
