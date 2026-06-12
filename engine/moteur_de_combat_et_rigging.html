@@ -442,6 +442,10 @@ const WEAPON_REACH = {
     thrown: 50   // arme ramenée près du corps, prête à être lancée
 };
 
+// Animations à l'issue desquelles l'arme reste "sortie" en main : le bouton
+// PLAY les enchaîne sur weapon_idle (et non idle), cf. handler ci-dessous.
+const WEAPON_DRAWN_ANIMS = ["weapon_draw", "weapon_attack_light", "weapon_attack_medium"];
+
 // 1. IDLE (Respiration, Squash & Stretch)
 ANIMATIONS_LIB["idle"] = {
     duration: 60, loop: true,
@@ -823,6 +827,56 @@ ANIMATIONS_LIB["weapon_idle"] = {
         armLower_L: { rotation: [{f:0, v:-20}, {f:25, v:-25}, {f:50, v:-20}] },
         armUpper_R: { rotation: [{f:0, v:-10}, {f:25, v:-15}, {f:50, v:-10}] },
         armLower_R: { rotation: [{f:0, v:-30}, {f:25, v:-35}, {f:50, v:-30}] }
+    }
+};
+
+// B7.1 WEAPON_ATTACK_LIGHT (28f) — Frappe rapide à l'arme, dérivée de combo_1
+// (jab, 22f) rebasée sur 28f (×1.27) : anticipation courte (f0→f5), extension
+// quasi-droite du bras armé vers l'avant (pic f11→f17), retour (f28). En plus
+// des pistes de bras/torse/jambes habituelles, "weaponSocket.rotation" amplifie
+// le mouvement de l'arme (recul à l'anticipation, extension au pic), borné à
+// ±30° (l'arme ne se retourne pas — règle Batch 7). f0 == f28 == pose
+// idle/weapon_idle, donc transition propre vers weapon_idle (cf. PLAY handler).
+ANIMATIONS_LIB["weapon_attack_light"] = {
+    duration: 28, loop: false,
+    tracks: {
+        torso: { rotation: [{f:0, v:0}, {f:5, v:-9, e:'easeOutQuad'}, {f:11, v:17, e:'easeInQuad'}, {f:28, v:0, e:'easeOutQuad'}] },
+        head: { rotation: [{f:0, v:0}, {f:11, v:9}, {f:28, v:0}] },
+        hip: {
+            x: [{f:0, v:0}, {f:5, v:-6}, {f:11, v:17, e:'easeOutQuad'}, {f:28, v:0}],
+            y: [{f:0, v:-70}, {f:5, v:-67}, {f:11, v:-75, e:'easeOutQuad'}, {f:28, v:-70}]
+        },
+        legUpper_R: { rotation: [{f:0, v:0}, {f:5, v:13}, {f:11, v:-9}, {f:28, v:0}] },
+        legUpper_L: { rotation: [{f:0, v:0}, {f:5, v:-9}, {f:11, v:13}, {f:28, v:0}] },
+        armUpper_R: { rotation: [{f:0, v:-10}, {f:5, v:22, e:'easeOutQuad'}, {f:11, v:-100, e:'easeInQuad'}, {f:17, v:-105}, {f:28, v:-10, e:'easeOutQuad'}] },
+        armLower_R: { rotation: [{f:0, v:-30}, {f:5, v:-72, e:'easeOutQuad'}, {f:11, v:8, e:'easeInQuad'}, {f:17, v:12}, {f:28, v:-30}] },
+        armUpper_L: { rotation: [{f:0, v:10}, {f:5, v:-32}, {f:11, v:58, e:'easeInQuad'}, {f:28, v:10, e:'easeOutQuad'}] }, // Contre-balancier
+        armLower_L: { rotation: [{f:0, v:-20}, {f:5, v:-15}, {f:11, v:-78}, {f:28, v:-20}] },
+        weaponSocket: { rotation: [{f:0, v:0}, {f:5, v:18, e:'easeOutQuad'}, {f:11, v:-28, e:'easeInQuad'}, {f:17, v:-15}, {f:28, v:0, e:'easeOutQuad'}] }
+    }
+};
+
+// B7.2 WEAPON_ATTACK_MEDIUM (35f) — Frappe diagonale plus ample, dérivée de
+// combo_3 (crochet, 22f) rebasée sur 35f (×1.59) : le coude reste plié tout au
+// long du mouvement (armLower_R entre -58 et -83), large balayage du bras armé
+// avec léger overshoot/follow-through (f22). "weaponSocket.rotation" amplifie
+// le balayage de l'arme, borné à ±30°. f0 == f35 == pose idle/weapon_idle.
+ANIMATIONS_LIB["weapon_attack_medium"] = {
+    duration: 35, loop: false,
+    tracks: {
+        torso: { rotation: [{f:0, v:0}, {f:6, v:-20, e:'easeOutQuad'}, {f:14, v:35, e:'easeInQuad'}, {f:22, v:24}, {f:35, v:0, e:'easeOutQuad'}] },
+        head: { rotation: [{f:0, v:0}, {f:6, v:-8}, {f:14, v:18}, {f:22, v:12}, {f:35, v:0}] },
+        hip: {
+            x: [{f:0, v:0}, {f:6, v:-12}, {f:14, v:24, e:'easeOutQuad'}, {f:22, v:14}, {f:35, v:0}],
+            y: [{f:0, v:-70}, {f:6, v:-65}, {f:14, v:-77, e:'easeOutQuad'}, {f:35, v:-70}]
+        },
+        legUpper_R: { rotation: [{f:0, v:0}, {f:6, v:22}, {f:14, v:-18}, {f:35, v:0}] },
+        legUpper_L: { rotation: [{f:0, v:0}, {f:6, v:-15}, {f:14, v:22}, {f:35, v:0}] },
+        armUpper_R: { rotation: [{f:0, v:-10}, {f:6, v:75, e:'easeOutQuad'}, {f:14, v:-105, e:'easeInQuad'}, {f:22, v:-110}, {f:35, v:-10, e:'easeOutQuad'}] },
+        armLower_R: { rotation: [{f:0, v:-30}, {f:6, v:-58}, {f:14, v:-78}, {f:22, v:-83}, {f:35, v:-30}] }, // Coude reste plié (frappe d'arme)
+        armUpper_L: { rotation: [{f:0, v:10}, {f:6, v:-42}, {f:14, v:58}, {f:35, v:10}] },
+        armLower_L: { rotation: [{f:0, v:-20}, {f:6, v:-12}, {f:14, v:-80}, {f:35, v:-20}] },
+        weaponSocket: { rotation: [{f:0, v:0}, {f:6, v:22, e:'easeOutQuad'}, {f:14, v:-28, e:'easeInQuad'}, {f:22, v:-14}, {f:35, v:0, e:'easeOutQuad'}] }
     }
 };
 
@@ -2159,7 +2213,7 @@ function initUI() {
     const animContainer = document.getElementById('anim-buttons-container');
     // Suivi de l'avancement (voir docs/continuity.md, table "ÉTAT DES ANIMATIONS")
     const validatedAnims = ["idle", "walk_forward", "punch_right", "hit_light", "hit_heavy", "ko_back", "idle_breathing", "prepare", "focus", "walk_backward", "run_forward", "run_backward", "step_forward", "step_backward", "turn_left", "turn_right", "punch_left", "double_punch", "headbutt", "kick_right", "kick_left", "heavy_kick", "combo_1", "combo_2", "combo_3", "combo_4", "combo_finisher", "weapon_idle", "weapon_draw"];
-    const inProgressAnims = [];
+    const inProgressAnims = ["weapon_attack_light", "weapon_attack_medium"];
 
     ANIMATION_NAMES.forEach(anim => {
         const btn = document.createElement('button');
@@ -2171,11 +2225,12 @@ function initUI() {
         }
 
         btn.addEventListener('click', () => {
-            // weapon_draw doit enchaîner sur weapon_idle (et non idle) : l'arme
+            // Les animations qui laissent l'arme "sortie" après coup (dégainer,
+            // attaques à l'arme) enchaînent sur weapon_idle (et non idle) : l'arme
             // reste en main, et weapon_idle adapte sa pose en temps réel à
             // fighter.weaponStyle (cf. WEAPON_HOLD_STYLES) — jamais la pose
             // d'un autre type d'arme que celle équipée.
-            const nextAnim = (anim === 'weapon_draw') ? 'weapon_idle' : 'idle';
+            const nextAnim = WEAPON_DRAWN_ANIMS.includes(anim) ? 'weapon_idle' : 'idle';
             fighterA.animator.play(anim, () => fighterA.animator.play(nextAnim));
         });
         animContainer.appendChild(btn);
