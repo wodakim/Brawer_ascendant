@@ -152,7 +152,12 @@
             <div style="display: flex; gap: 4px; margin-top: 4px;">
                 <button id="btn-slowmo" style="flex: 1;">Slow Motion</button>
                 <button id="btn-frame" style="flex: 1;">Frame +1</button>
-                <button id="btn-toggle-weapon" style="flex: 1; background: #c90;">Weapon A</button>
+                <select id="weapon-style-select" style="flex: 1; background: #c90; color: #fff; font-weight: bold;">
+                    <option value="unarmed">Unarmed</option>
+                    <option value="melee" selected>Melee</option>
+                    <option value="ranged">Ranged</option>
+                    <option value="thrown">Thrown</option>
+                </select>
             </div>
         </div>
 
@@ -352,6 +357,90 @@ const ANIMATIONS_LIB = {};
 ANIMATION_NAMES.forEach(name => {
     ANIMATIONS_LIB[name] = { duration: 30, loop: false, tracks: {} };
 });
+
+/**
+ * Surcouche dynamique de tenue d'arme — appliquée par Animator.update() EN PLUS
+ * des pistes de l'animation courante, sur les animations marquées
+ * `weaponStyleOverlay: true` (ex: weapon_idle). Lue à chaque frame sur
+ * `fighter.weaponStyle`, donc une même animation s'adapte immédiatement si
+ * l'arme tenue change en cours de jeu (changement, perte, vol d'arme) sans
+ * avoir besoin de relancer play() avec un nom d'anim différent.
+ * Format : { nodeId: { prop: (frame, duration) => delta } } — deltas ADDITIFS
+ * par rapport à la valeur déjà calculée par les pistes de l'animation de base.
+ */
+const WEAPON_HOLD_STYLES = {
+    // Garde de boxeur (poings levés devant le buste, coudes ramenés contre le
+    // torse), pas de pose "tenue d'arme" résiduelle. Cible ABSOLUE symétrique
+    // pour les deux bras, calculée depuis la géométrie du rig (longueur des
+    // segments armUpper_*/armLower_*) : armUpper_*=-45°, armLower_*=-90°.
+    // Avec ces angles, le coude se replie contre le torse à hauteur de
+    // poitrine (loin de la hanche ET du visage) et le poing remonte devant le
+    // buste à hauteur d'épaule/menton — ne PAS recopier les valeurs d'une
+    // autre animation (ex: "prepare") : leurs autres pistes (torse/tête/hanche)
+    // diffèrent de celles de weapon_idle, donc les mêmes angles y produisent
+    // une pose différente (bug Session 10 : coude devant le visage, main au
+    // niveau de la hanche). Deltas = cible absolue moins le centre de
+    // l'oscillation de respiration de weapon_idle (armUpper_L=12.5,
+    // armLower_L=-22.5, armUpper_R=-12.5, armLower_R=-32.5), pour conserver le
+    // mouvement de respiration par-dessus la garde.
+    unarmed: {
+        armUpper_L: { rotation: (f, d) => -57.5 },
+        armLower_L: { rotation: (f, d) => -67.5 },
+        armUpper_R: { rotation: (f, d) => -32.5 },
+        armLower_R: { rotation: (f, d) => -57.5 }
+    },
+    melee: {
+        // Oscillation du poignet (~±3°) + l'arme se balance doucement (~±5°)
+        armLower_R:   { rotation: (f, d) => 3 * Math.sin(2 * Math.PI * f / d) },
+        weaponSocket: { rotation: (f, d) => 5 * Math.sin(2 * Math.PI * f / d) }
+    },
+    ranged: {
+        // Arme tenue plus haute/en avant (posture de visée), peu de balancement
+        armUpper_R:   { rotation: (f, d) => -30 },
+        armLower_R:   { rotation: (f, d) => -50 + 1 * Math.sin(2 * Math.PI * f / d) },
+        weaponSocket: { rotation: (f, d) => -20 + 2 * Math.sin(2 * Math.PI * f / d) }
+    },
+    thrown: {
+        // Arme ramenée près du corps, prête à être lancée, balancement plus vif
+        armUpper_R:   { rotation: (f, d) => 15 },
+        armLower_R:   { rotation: (f, d) => -20 + 4 * Math.sin(2 * Math.PI * (f / d + 0.25)) },
+        weaponSocket: { rotation: (f, d) => 10 + 6 * Math.sin(2 * Math.PI * (f / d + 0.25)) }
+    }
+};
+
+// Union de tous les (nodeId, prop) modifiés par au moins un style de
+// WEAPON_HOLD_STYLES. Permet à Animator.update() de réinitialiser ces valeurs
+// à leur état de repos quand le style courant (ex: 'unarmed', table vide) ne
+// les modifie pas — sinon une valeur fixée par un style précédent (ex:
+// weaponSocket.rotation en 'thrown') resterait figée après un changement de style.
+const WEAPON_HOLD_OVERLAY_TARGETS = [];
+{
+    const seen = new Set();
+    for(const style of Object.values(WEAPON_HOLD_STYLES)) {
+        for(const [nodeId, props] of Object.entries(style)) {
+            for(const prop of Object.keys(props)) {
+                const key = nodeId + '.' + prop;
+                if(!seen.has(key)) { seen.add(key); WEAPON_HOLD_OVERLAY_TARGETS.push([nodeId, prop]); }
+            }
+        }
+    }
+}
+
+/**
+ * Allonge additionnelle (px) apportée par le style de tenue d'arme courant —
+ * lue par Fighter.attackRange (cf. SENSOR), qui réagit donc immédiatement à
+ * fighter.weaponStyle au même titre que WEAPON_HOLD_STYLES pour la pose.
+ * Valeurs PLACEHOLDER (un seul "weapon" générique pour l'instant, cf.
+ * weapons/axe|club|dagger|spear|sword|unarmed) : à terme chaque arme aura sa
+ * propre allonge issue de ses stats, mais le SENSOR est déjà branché sur le
+ * style pour ne pas avoir à retoucher l'architecture quand ces stats arriveront.
+ */
+const WEAPON_REACH = {
+    unarmed: 0,
+    melee: 80,   // = weapon.w - weapon.pX (posture actuelle, arme tenue au corps)
+    ranged: 40,  // prise en main courte pour l'allonge de mêlée ; la portée de tir sera une stat séparée
+    thrown: 50   // arme ramenée près du corps, prête à être lancée
+};
 
 // 1. IDLE (Respiration, Squash & Stretch)
 ANIMATIONS_LIB["idle"] = {
@@ -671,6 +760,69 @@ ANIMATIONS_LIB["combo_finisher"] = {
         armLower_R: { rotation: [{f:0, v:-30}, {f:8, v:-90}, {f:18, v:10}, {f:26, v:15}, {f:38, v:-25}, {f:50, v:-30}] },
         armUpper_L: { rotation: [{f:0, v:10}, {f:8, v:-20}, {f:18, v:70}, {f:26, v:60}, {f:38, v:20}, {f:50, v:10}] },
         armLower_L: { rotation: [{f:0, v:-20}, {f:8, v:-10}, {f:18, v:-85}, {f:26, v:-80}, {f:38, v:-30}, {f:50, v:-20}] }
+    }
+};
+
+// B6.1 WEAPON_DRAW (35f) — Le bras droit plonge vers la hanche/ceinture (armUpper_R
+// jusqu'à 75°, armLower_R jusqu'à -115° = grande flexion du coude) pour saisir
+// l'arme, avec un léger contre-mouvement du torse/tête/bassin et de la jambe
+// d'appui pour l'équilibre. L'arme (node "weapon", scaleX/scaleY = 0 au départ
+// donc invisible) "apparaît" dans weaponSocket via un pop scaleX/scaleY 0→1 au
+// frame 18 (mi-chemin de l'animation, au moment où la main atteint la hanche).
+// Puis le bras ramène l'arme vers une posture prête, retour à la pose idle.
+// f0 == f35 == pose idle (armUpper_R=-10, armLower_R=-30, etc.) ; le node
+// "weapon" termine à scaleX=scaleY=1, ce qui correspond à sa valeur de reset
+// (BASE_RIG ne définit pas scaleX/scaleY pour "weapon" → reset = 1), donc la
+// transition vers "idle" (qui n'anime pas "weapon") reste cohérente.
+ANIMATIONS_LIB["weapon_draw"] = {
+    duration: 35, loop: false,
+    tracks: {
+        torso: { rotation: [{f:0, v:0}, {f:8, v:-8, e:'easeOutQuad'}, {f:18, v:-12, e:'easeInQuad'}, {f:27, v:-5}, {f:35, v:0, e:'easeOutQuad'}] },
+        head: { rotation: [{f:0, v:0}, {f:8, v:-6}, {f:18, v:-10}, {f:27, v:-3}, {f:35, v:0}] },
+        hip: {
+            x: [{f:0, v:0}, {f:8, v:-5}, {f:18, v:-8, e:'easeOutQuad'}, {f:27, v:-3}, {f:35, v:0}],
+            y: [{f:0, v:-70}, {f:8, v:-68}, {f:18, v:-66, e:'easeOutQuad'}, {f:27, v:-69}, {f:35, v:-70}]
+        },
+        legUpper_R: { rotation: [{f:0, v:0}, {f:8, v:5}, {f:18, v:8}, {f:27, v:3}, {f:35, v:0}] },
+        legUpper_L: { rotation: [{f:0, v:0}, {f:8, v:-3}, {f:18, v:-5}, {f:27, v:-2}, {f:35, v:0}] },
+        // Bras droit : tend vers l'avant (f8) puis remonte/replie en travers du
+        // torse pour "tirer" l'arme (f18, pic), avant de redescendre en position
+        // de garde (f27→f35).
+        armUpper_R: { rotation: [{f:0, v:-10}, {f:8, v:-70, e:'easeOutQuad'}, {f:18, v:-95, e:'easeInQuad'}, {f:27, v:-40}, {f:35, v:-10, e:'easeOutQuad'}] },
+        armLower_R: { rotation: [{f:0, v:-30}, {f:8, v:-15, e:'easeOutQuad'}, {f:18, v:10, e:'easeInQuad'}, {f:27, v:-20}, {f:35, v:-30}] },
+        armUpper_L: { rotation: [{f:0, v:10}, {f:8, v:-15}, {f:18, v:20}, {f:27, v:5}, {f:35, v:10}] }, // Contre-balancier
+        armLower_L: { rotation: [{f:0, v:-20}, {f:8, v:-35}, {f:18, v:-10}, {f:27, v:-25}, {f:35, v:-20}] },
+        weapon: {
+            scaleX: [{f:0, v:0}, {f:17, v:0}, {f:18, v:1}], // Pop d'apparition (l'arme rejoint weaponSocket)
+            scaleY: [{f:0, v:0}, {f:17, v:0}, {f:18, v:1}]
+        }
+    }
+};
+
+// B6.2 WEAPON_IDLE (50f, loop) — Variante de "idle" : reprend la respiration du
+// torse/tête/bras (mêmes amplitudes que ANIMATIONS_LIB["idle"], cycle ramené de
+// 60f à 50f). `weaponStyleOverlay: true` : Animator.update() ajoute en plus,
+// CHAQUE FRAME, une surcouche dépendant de fighter.weaponStyle (cf.
+// WEAPON_HOLD_STYLES) — oscillation du poignet (armLower_R) et balancement de
+// l'arme (weaponSocket.rotation), différents pour unarmed/melee/ranged/thrown,
+// et qui réagissent immédiatement si l'arme tenue change en cours de jeu (pas
+// besoin de relancer l'animation). f0==f25==f50 (cycle de respiration, boucle
+// continue) ; les pistes de surcouche sont elles-mêmes périodiques sur f/duration
+// donc se referment aussi proprement sur la boucle.
+ANIMATIONS_LIB["weapon_idle"] = {
+    duration: 50, loop: true,
+    weaponStyleOverlay: true,
+    tracks: {
+        torso: {
+            scaleY: [{f:0, v:1, e:'easeInOutQuad'}, {f:25, v:0.96, e:'easeInOutQuad'}, {f:50, v:1}],
+            scaleX: [{f:0, v:1, e:'easeInOutQuad'}, {f:25, v:1.02, e:'easeInOutQuad'}, {f:50, v:1}],
+            y: [{f:0, v:-10}, {f:25, v:-8}, {f:50, v:-10}]
+        },
+        head: { y: [{f:0, v:-65}, {f:25, v:-63}, {f:50, v:-65}], rotation: [{f:0, v:0}, {f:25, v:2}, {f:50, v:0}] },
+        armUpper_L: { rotation: [{f:0, v:10}, {f:25, v:15}, {f:50, v:10}] },
+        armLower_L: { rotation: [{f:0, v:-20}, {f:25, v:-25}, {f:50, v:-20}] },
+        armUpper_R: { rotation: [{f:0, v:-10}, {f:25, v:-15}, {f:50, v:-10}] },
+        armLower_R: { rotation: [{f:0, v:-30}, {f:25, v:-35}, {f:50, v:-30}] }
     }
 };
 
@@ -1465,6 +1617,7 @@ class Animator {
         this.frame = 0;
         this.isPlaying = false;
         this.onComplete = null;
+        this.fighter = null; // Lié par Fighter (cf. constructor) — utilisé par WEAPON_HOLD_STYLES
     }
 
     play(animName, onComplete) {
@@ -1487,6 +1640,27 @@ class Animator {
 
             for(const [prop, keyframes] of Object.entries(track)) {
                 node[prop] = this.interpolate(keyframes, this.frame, node[`base${prop.charAt(0).toUpperCase() + prop.slice(1)}`] || 0);
+            }
+        }
+
+        // Surcouche dynamique de tenue d'arme (cf. WEAPON_HOLD_STYLES) : relue à
+        // chaque frame sur fighter.weaponStyle, donc réagit immédiatement à un
+        // changement d'arme en cours d'animation, sans relancer play().
+        if(this.currentAnim.weaponStyleOverlay && this.fighter) {
+            const style = WEAPON_HOLD_STYLES[this.fighter.weaponStyle] || WEAPON_HOLD_STYLES.unarmed;
+            for(const [nodeId, prop] of WEAPON_HOLD_OVERLAY_TARGETS) {
+                const node = this.skeleton.nodes[nodeId];
+                if(!node) continue;
+                const baseTrack = this.currentAnim.tracks[nodeId];
+                if(!baseTrack || !baseTrack[prop]) {
+                    // Pas de piste de base pour cette prop (ex: weaponSocket.rotation) :
+                    // repartir de sa valeur de repos. Indispensable aussi pour 'unarmed'
+                    // (table vide) afin d'effacer la surcouche d'un style précédent.
+                    const baseKey = `base${prop.charAt(0).toUpperCase() + prop.slice(1)}`;
+                    node[prop] = node[baseKey] !== undefined ? node[baseKey] : 0;
+                }
+                const fn = style[nodeId] && style[nodeId][prop];
+                if(fn) node[prop] += fn(this.frame, this.currentAnim.duration);
             }
         }
 
@@ -1550,14 +1724,16 @@ class Fighter {
         const parts = getCharacterParts(playerName, SKIN_COUNTS);
         this.skeleton = new Skeleton(dir, parts);
         this.animator = new Animator(this.skeleton);
+        this.animator.fighter = this; // Permet à WEAPON_HOLD_STYLES de lire ce fighter
         this.state = "idle";
         this.hp = 100;
         this.target = null;
-        
+
         // Stats sandbox
         this.speed = 3;
         this.hasWeapon = true; // Gère l'équipement en cours
-        
+        this.weaponStyle = 'melee'; // 'unarmed' | 'melee' | 'ranged' | 'thrown' — voir WEAPON_HOLD_STYLES
+
         this.changeState("idle");
     }
 
@@ -1571,11 +1747,11 @@ class Fighter {
         if (armUpper) baseReach += armUpper.h * 0.8;
         if (armLower) baseReach += armLower.h * 0.8; 
         
-        // Allonge de l'arme si elle est équipée
-        if (this.hasWeapon && this.skeleton.nodes["weapon"]) {
-            const weapon = this.skeleton.nodes["weapon"];
-            // L'allonge est la longueur totale moins la partie tenue dans la main (pX)
-            baseReach += (weapon.w - weapon.pX);
+        // Allonge de l'arme selon le style tenu en main (cf. WEAPON_REACH) — le
+        // SENSOR s'adapte donc dynamiquement à un changement/perte d'arme, comme
+        // la pose (WEAPON_HOLD_STYLES).
+        if (this.hasWeapon) {
+            baseReach += WEAPON_REACH[this.weaponStyle] ?? 0;
         }
         
         return Math.floor(baseReach);
@@ -1586,6 +1762,14 @@ class Fighter {
         if (this.skeleton.nodes["weapon"]) {
             this.skeleton.nodes["weapon"].visible = equipped;
         }
+    }
+
+    // Change le style de tenue d'arme (cf. WEAPON_HOLD_STYLES), appliqué en temps
+    // réel par Animator.update() sur les animations `weaponStyleOverlay: true`.
+    // 'unarmed' désarme aussi le node "weapon" (cohérent avec equipWeapon).
+    setWeaponStyle(style) {
+        this.weaponStyle = style;
+        this.equipWeapon(style !== 'unarmed');
     }
 
     changeState(newState) {
@@ -1961,18 +2145,20 @@ function initUI() {
         }
     });
 
-    // Test dynamique de l'allonge
-    const btnToggleWeapon = document.getElementById('btn-toggle-weapon');
-    if(btnToggleWeapon) {
-        btnToggleWeapon.addEventListener('click', () => {
-            fighterA.equipWeapon(!fighterA.hasWeapon);
+    // Style de tenue d'arme (cf. WEAPON_HOLD_STYLES) — pilote en temps réel la
+    // surcouche `weaponStyleOverlay` (ex: weapon_idle) et l'équipement du node "weapon"
+    const weaponStyleSelect = document.getElementById('weapon-style-select');
+    if(weaponStyleSelect) {
+        weaponStyleSelect.addEventListener('change', (e) => {
+            fighterA.setWeaponStyle(e.target.value);
         });
+        fighterA.setWeaponStyle(weaponStyleSelect.value); // Synchronise l'état initial
     }
 
     // Génération des boutons d'animations
     const animContainer = document.getElementById('anim-buttons-container');
     // Suivi de l'avancement (voir docs/continuity.md, table "ÉTAT DES ANIMATIONS")
-    const validatedAnims = ["idle", "walk_forward", "punch_right", "hit_light", "hit_heavy", "ko_back", "idle_breathing", "prepare", "focus", "walk_backward", "run_forward", "run_backward", "step_forward", "step_backward", "turn_left", "turn_right", "punch_left", "double_punch", "headbutt", "kick_right", "kick_left", "heavy_kick", "combo_1", "combo_2", "combo_3", "combo_4", "combo_finisher"];
+    const validatedAnims = ["idle", "walk_forward", "punch_right", "hit_light", "hit_heavy", "ko_back", "idle_breathing", "prepare", "focus", "walk_backward", "run_forward", "run_backward", "step_forward", "step_backward", "turn_left", "turn_right", "punch_left", "double_punch", "headbutt", "kick_right", "kick_left", "heavy_kick", "combo_1", "combo_2", "combo_3", "combo_4", "combo_finisher", "weapon_draw", "weapon_idle"];
     const inProgressAnims = [];
 
     ANIMATION_NAMES.forEach(anim => {
@@ -1985,7 +2171,12 @@ function initUI() {
         }
 
         btn.addEventListener('click', () => {
-            fighterA.animator.play(anim, () => fighterA.animator.play("idle"));
+            // weapon_draw doit enchaîner sur weapon_idle (et non idle) : l'arme
+            // reste en main, et weapon_idle adapte sa pose en temps réel à
+            // fighter.weaponStyle (cf. WEAPON_HOLD_STYLES) — jamais la pose
+            // d'un autre type d'arme que celle équipée.
+            const nextAnim = (anim === 'weapon_draw') ? 'weapon_idle' : 'idle';
+            fighterA.animator.play(anim, () => fighterA.animator.play(nextAnim));
         });
         animContainer.appendChild(btn);
     });

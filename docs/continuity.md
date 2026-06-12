@@ -114,6 +114,21 @@ Pour les animations de jambes, `torso.rotation`/`head.rotation`/`hip` ne représ
 - `armUpper_*.rotation` / `armLower_*.rotation` → inchangé par rapport à la règle générale ci-dessus (PAS de sign-flip, même forme de delta rebasée sur la nouvelle baseline).
 - Vérifié visuellement par capture d'écran à la frame d'impact (f15) : la jambe active (legUpper_L/legLower_L pour `kick_left`) s'étend bien vers la zone "SENSOR", de façon cohérente avec `kick_right`.
 
+### Système de tenue d'arme dynamique (`weaponStyle` / `WEAPON_HOLD_STYLES` / `WEAPON_REACH`) — ajouté Session 10 (Batch 6)
+**Contexte** : ce projet est un *moteur* pour un jeu où l'arme en main peut changer à tout moment en plein combat (équipement, perte, vol). Plutôt que des animations séparées par type d'arme, le choix retenu (validé par l'utilisateur) est une **surcouche dynamique appliquée en temps réel** par-dessus l'animation de base.
+
+- **`Fighter.weaponStyle`** : `'unarmed' | 'melee' | 'ranged' | 'thrown'` (défaut `'melee'`). `Fighter.setWeaponStyle(style)` met à jour `weaponStyle` ET appelle `equipWeapon(style !== 'unarmed')` (cache/affiche le node `weapon`).
+- **UI** : panneau droit, `<select id="weapon-style-select">` (Unarmed/Melee/Ranged/Thrown) — remplace l'ancien bouton `btn-toggle-weapon`. Pilote `fighterA.setWeaponStyle()` au `change`.
+- **`WEAPON_HOLD_STYLES`** : table `{ unarmed, melee, ranged, thrown }`, chaque entrée = `{ nodeId: { prop: (frame, duration) => delta } }`. Appliquée **additivement** par `Animator.update()`, APRÈS l'interpolation des pistes de base, sur toute animation flaguée `weaponStyleOverlay: true` (actuellement : `weapon_idle` uniquement). Relue à CHAQUE FRAME sur `fighter.weaponStyle` → un changement de style en plein milieu d'une boucle s'applique instantanément, sans relancer `play()`.
+- **`WEAPON_HOLD_OVERLAY_TARGETS`** : union (calculée une fois au chargement) de tous les `(nodeId, prop)` apparaissant dans au moins un style de `WEAPON_HOLD_STYLES`. Pour chaque cible, si l'animation courante n'a PAS de piste de base pour cette prop, `Animator.update()` la réinitialise à sa valeur de repos (`base<Prop>`/0) avant d'appliquer le delta du style courant (ou rien si le style courant ne définit pas cette cible). **Indispensable** pour `unarmed` (qui ne définissait au départ aucune cible) : sans ce mécanisme, `weaponSocket.rotation` restait figé à la dernière valeur d'un style précédent (ex. `thrown`) au lieu de revenir à 0.
+- **`unarmed` = garde de boxeur** (PAS une table vide) : `armUpper_L/armLower_L/armUpper_R/armLower_R` reçoivent des deltas constants (`-57.5/-67.5/-32.5/-57.5`) qui recentrent l'oscillation de respiration de `weapon_idle` sur une cible ABSOLUE symétrique `armUpper_*=-45°, armLower_*=-90°`, **calculée directement depuis la géométrie du rig** (longueurs des segments `armUpper_*`/`armLower_*` dans `BASE_RIG`) : coude replié contre le torse à hauteur de poitrine, poing levé devant le buste à hauteur d'épaule/menton. Évite la sensation "tient une arme invisible" à mains nues — poings levés, weapon caché (`visible=false` via `equipWeapon(false)`). **Piège déjà rencontré (Session 10)** : une première version recopiait la pose finale de `prepare` (`armUpper_L=-30, armLower_L=45, armUpper_R=-45, armLower_R=55`) — mêmes angles, mais `prepare` a des pistes torse/hanche/tête différentes de `weapon_idle`, donc les mêmes angles y produisaient une pose différente (coude devant le visage, main au niveau de la hanche). **Ne jamais recopier des angles bras d'une animation à l'autre sans vérifier `getGlobalPos()`** — toujours dériver/vérifier via la géométrie du rig.
+- **`WEAPON_REACH`** : `{ unarmed:0, melee:80, ranged:40, thrown:50 }` (px). `Fighter.attackRange` (= largeur du SENSOR, cf. rendu + `checkHit`/`updateAutoCombat`) ajoute `WEAPON_REACH[weaponStyle]` quand `hasWeapon`. **Valeurs PLACEHOLDER** (un seul node "weapon" générique, pas encore de stats par arme réelle issues de `weapons/axe|club|dagger|spear|sword`) — mais le SENSOR est déjà branché sur `weaponStyle`/`hasWeapon`, donc affiner ces valeurs (ou les rendre par-arme) ne nécessitera pas de changement d'architecture.
+- **Transition `weapon_draw` → `weapon_idle`** (pas `idle`) : cas spécial dans le handler des boutons PLAY (`anim === 'weapon_draw' ? 'weapon_idle' : 'idle'`) — seul `weapon_draw` est concerné, les 28 autres animations retombent toujours sur `idle`. Garantit que l'arme reste "sortie" et que la pose `weapon_idle` qui suit correspond bien au `weaponStyle` équipé (jamais la pose d'un autre type d'arme).
+- **Conséquence pour les futures animations** : toute nouvelle animation dont la pose doit dépendre de l'arme tenue → flaguer `weaponStyleOverlay: true` et ajouter les cibles nécessaires dans `WEAPON_HOLD_STYLES` (en pensant à `WEAPON_HOLD_OVERLAY_TARGETS`, calculé automatiquement). Toute animation qui doit laisser l'arme "sortie" après coup → cibler `weapon_idle` en fin de `play()`, comme `weapon_draw`.
+
+### IDÉES FUTURES (hors séquence batch actuelle)
+- **Animations de combat dépendantes de l'arme** (`punch_right`, `punch_left`, `double_punch`, combos, hits, etc.) : retour utilisateur Session 10 — ces animations devraient elles aussi s'adapter selon `unarmed`/`melee`/`ranged`/`thrown` (ex. un coup de poing avec une épée en main devrait être un coup d'épée, pas un poing nu). Décision : **ne PAS retoucher les 27 animations déjà validées maintenant** (risque de re-validation massif) — à traiter comme un **batch dédié futur**, en réutilisant le même pattern `weaponStyleOverlay`/`WEAPON_HOLD_STYLES` (ou une table équivalente `WEAPON_ATTACK_STYLES`) plutôt que des variantes nommées séparées, cohérent avec le choix d'architecture dynamique de Batch 6. À scoper précisément quand on y arrivera.
+
 ### Code couleur des boutons "PLAY" (panneau gauche, ~ligne 1496 du HTML)
 - 🟩 Vert (`#2e7d32`) : animation validée par l'utilisateur → ajouter le nom à `validatedAnims`
 - 🟥 Rouge (`#c62828`) : animation en cours de travail (pas encore validée) → ajouter le nom à `inProgressAnims`
@@ -433,8 +448,8 @@ Puis ouvrir : `http://localhost:8080/engine/moteur_de_combat_et_rigging.html`
 | combo_3 | ✅ Batch 5 écrit | 22f | non | 5 | ✅ Validé (Session 9) |
 | combo_4 | ✅ Batch 5 écrit | 22f | non | 5 | ✅ Validé (Session 9) |
 | combo_finisher | ✅ Batch 5 écrit | 50f | non | 5 | ✅ Validé (Session 9) |
-| weapon_draw | ⏳ À faire | 35f | non | 6 | ❌ |
-| weapon_idle | ⏳ À faire | 50f | oui | 6 | ❌ |
+| weapon_draw | ✅ Batch 6 écrit | 35f | non | 6 | ✅ Validé (Session 10) |
+| weapon_idle | ✅ Batch 6 écrit | 50f | oui | 6 | ✅ Validé (Session 10) |
 | weapon_attack_light | ⏳ À faire | 28f | non | 7 | ❌ |
 | weapon_attack_medium | ⏳ À faire | 35f | non | 7 | ❌ |
 | weapon_attack_heavy | ⏳ À faire | 50f | non | 7 | ❌ |
@@ -495,7 +510,7 @@ Puis ouvrir : `http://localhost:8080/engine/moteur_de_combat_et_rigging.html`
 | exit_arena | ⏳ À faire | 40f | non | 20 | ❌ |
 | taunt | ⏳ À faire | 55f | non | 20 | ❌ |
 
-**Compteur** : 27 validées (idle, walk_forward, punch_right, hit_light, hit_heavy, ko_back, idle_breathing, prepare, focus, walk_backward, run_forward, run_backward, step_forward, step_backward, turn_left, turn_right, punch_left, double_punch, headbutt, kick_right, kick_left, heavy_kick, combo_1, combo_2, combo_3, combo_4, combo_finisher) / 61 à implémenter / 88 total (`ANIMATION_NAMES`)
+**Compteur** : 29 validées (idle, walk_forward, punch_right, hit_light, hit_heavy, ko_back, idle_breathing, prepare, focus, walk_backward, run_forward, run_backward, step_forward, step_backward, turn_left, turn_right, punch_left, double_punch, headbutt, kick_right, kick_left, heavy_kick, combo_1, combo_2, combo_3, combo_4, combo_finisher, weapon_draw, weapon_idle) / 59 à implémenter / 88 total (`ANIMATION_NAMES`)
 *(+ `dodge_backward` : bonus déjà codé avec keyframes mais absent de `ANIMATION_NAMES`, hors compteur officiel)*
 
 ---
@@ -777,4 +792,38 @@ Suite à la validation du Batch 4, poursuite avec le Batch 5 (Combo Chain), trai
 
 ---
 
-*Dernière mise à jour : 2026-06-11 — Session 9 — Batch 5 complet et validé (5/5) : `combo_1` à `combo_finisher`. 27/88 animations validées. Poussé sur GitHub.*
+### SESSION 10 — 2026-06-12 (heure locale)
+
+#### 1. Implémentation de `weapon_draw` et `weapon_idle` (Batch 6, 2/2) + architecture de tenue d'arme dynamique
+- **`weapon_draw`** (35f, loop:false) : le bras droit va chercher l'arme (`hip`, f8→f18), l'arme "apparaît" dans `weaponSocket` via un pop `scaleX`/`scaleY` 0→1 au frame 18, puis le bras ramène l'arme vers une posture prête (f27→f35, retour à la pose `weapon_idle`).
+- **`weapon_idle`** (50f, loop:true) : reprend l'oscillation de respiration de `idle`/`idle_breathing` (torse/tête/bras), flaguée `weaponStyleOverlay: true`.
+- **Architecture `weaponStyle` / `WEAPON_HOLD_STYLES` / `WEAPON_HOLD_OVERLAY_TARGETS` / `WEAPON_REACH`** : voir section "RÈGLES FONDAMENTALES" ci-dessus pour le détail complet. Choix validé par l'utilisateur : une surcouche dynamique appliquée en temps réel par-dessus `weapon_idle`, plutôt que des animations séparées par type d'arme, car l'arme en main peut changer en plein combat (équipement/perte/vol).
+
+#### 2. Retour utilisateur — coude "cassé" sur `weapon_draw` en Unarmed
+L'utilisateur signale qu'en style `unarmed`, le bras droit de `weapon_draw` a le coude "dans le mauvais sens" (effet bras cassé). Cause : la piste originale `armLower_R` montait jusqu'à -115° au pic (f18), hors de la plage naturelle de flexion du coude. **Correctif** : nouvelles courbes `armUpper_R` (-10→-70→-95→-40→-10) et `armLower_R` (-30→-15→10→-20→-30) — le bras tend vers l'avant (f8) puis se replie en travers du torse pour "tirer" l'arme (pic f18), avant de redescendre en garde (f27→f35). Vérifié par capture d'écran : plus de coude désarticulé.
+
+#### 3. Retour utilisateur — bug persistant : coude devant le visage, main devant la hanche
+Second retour : le problème persiste, coude quasi devant le visage et main juste devant la hanche. **Erreur de lecture** : ce second retour décrivait en réalité la pose `unarmed` de **`weapon_idle`** (lancée juste après `weapon_draw`), pas `weapon_draw` lui-même — confusion qui a conduit à une tentative de correctif erronée sur `weapon_draw` (cassant la version du point 2, pourtant correcte), rapidement identifiée et annulée par l'utilisateur ("tu viens de casser la belle animation weapon draw"). **Leçon retenue** : bien lire/distinguer à QUELLE animation se rapporte chaque retour utilisateur quand plusieurs sont mentionnés en succession ; pas de "rustines" numériques non vérifiées sur un fichier moteur destiné à être injecté dans un projet de jeu.
+
+#### 4. Cause réelle et correctif définitif — `weapon_idle.unarmed`
+La table `WEAPON_HOLD_STYLES.unarmed` recopiait les angles de bras absolus de la pose finale de `prepare` (`armUpper_L=-30, armLower_L=45, armUpper_R=-45, armLower_R=55`). Or `prepare` a des pistes torse/hanche/tête différentes de `weapon_idle` : les mêmes angles y produisent une pose différente (`hand_R≈(224,393)`≈hauteur de hanche ; coude gauche `≈(186.5,364)`≈devant le visage, vérifié via `getGlobalPos()`).
+**Correctif** : nouvelles valeurs dérivées directement de la géométrie du rig (`elbow_offset = R(armUpper)·(13,48 ou 0,37)`, `hand = elbow + R(armUpper+armLower)·(0,35)`), cible absolue symétrique `armUpper_L=armUpper_R=-45°`, `armLower_L=armLower_R=-90°` → deltas `armUpper_L=-57.5, armLower_L=-67.5, armUpper_R=-32.5, armLower_R=-57.5`.
+Vérifié (aucune erreur console/page) :
+- `hand_R≈(255,333-337)`, `hand_L≈(218-220,331-338)` — ~55-60px au-dessus de `hip.y=391` (plus "main à la hanche").
+- `armLower_R≈(229-232,358-361)`, `armLower_L≈(193-195,356-361)` — hauteur poitrine, ~38-44px sous `head.y` (plus "coude devant le visage").
+- Identique via `weapon_draw → weapon_idle` ET via clic direct "PLAY WEAPON IDLE", sur tout le cycle de 50f.
+- Régression : poses `melee`/`ranged`/`thrown` de `weapon_idle` strictement inchangées.
+
+#### 5. Validation utilisateur
+- *"je valide le weapon idle en ce sens"* — nouvelle garde `unarmed` validée.
+- `weapon_draw` (version du point 2) confirmé comme version à conserver ("Version actuelle (Candidat A, déjà en place)"). **Batch 6 complet (2/2)**. `validatedAnims` mis à jour (29 animations), `inProgressAnims` vidé.
+
+#### 6. Git
+- Commit + push sur `https://github.com/wodakim/Brawer_ascendant.git` (branche `main`) incluant : `weapon_draw`, `weapon_idle`, architecture `weaponStyle`/`WEAPON_HOLD_STYLES`/`WEAPON_HOLD_OVERLAY_TARGETS`/`WEAPON_REACH`, code couleur des boutons, mise à jour de ce journal.
+
+#### Prochaine étape
+**BATCH 7 — Arme : Attaques (5 animations)** : `weapon_attack_light` (28f), `weapon_attack_medium` (35f), `weapon_attack_heavy` (50f), `weapon_combo` (40f), `weapon_critical` (60f) — toutes non-loop. Voir "IDÉES FUTURES" ci-dessus pour la question en suspens des animations de combat dépendantes de l'arme (`punch_right`, etc.) — **hors scope de Batch 7**, à traiter comme un batch dédié ultérieur.
+
+---
+
+*Dernière mise à jour : 2026-06-12 — Session 10 — Batch 6 complet et validé (2/2) : `weapon_draw`, `weapon_idle` + architecture `weaponStyle`/`WEAPON_HOLD_STYLES`. 29/88 animations validées. Poussé sur GitHub.*
