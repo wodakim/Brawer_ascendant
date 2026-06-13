@@ -1,0 +1,57 @@
+:root {
+    --bg: #1e1e1e;
+    --panel: #252526;
+    --border: #333;
+    --text: #ddd;
+    --accent: #007acc;
+    --accent-hover: #005f9e;
+    --danger: #cc4444;
+}
+body {
+    margin: 0; padding: 0;
+    background: var(--bg); color: var(--text);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex; height: 100vh; overflow: hidden;
+    font-size: 13px;
+}
+canvas {
+    flex-grow: 1; background: #2d2d2d;
+    box-shadow: inset 0 0 50px rgba(0,0,0,0.5);
+    cursor: crosshair;
+    min-width: 0; /* Permet au canvas de se contracter et évite de pousser le panneau droit */
+}
+.panel {
+    width: 300px;
+    min-width: 260px;
+    flex-shrink: 0;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    min-height: 0;
+}
+.header { background: #1a1a1a; padding: 10px; font-weight: bold; text-align: center; border-bottom: 1px solid var(--border); }
+.section { padding: 10px; border-bottom: 1px solid var(--border); }
+.section-title { font-weight: bold; color: #888; margin-bottom: 8px; text-transform: uppercase; font-size: 11px; letter-spacing: 1px;}
+.control-group { margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
+.control-group label { flex: 1; }
+.control-group input[type="range"] { flex: 2; }
+.control-group input[type="number"] { width: 50px; background: #333; border: 1px solid #555; color: #fff; padding: 2px; }
+.control-group select { width: 100%; background: #333; border: 1px solid #555; color: #fff; padding: 4px; }
+button {
+    background: var(--accent); color: white; border: none; padding: 6px 10px; margin: 2px;
+    cursor: pointer; border-radius: 3px; font-size: 12px; transition: 0.2s;
+}
+button:hover { background: var(--accent-hover); }
+button.active { background: #4caf50; }
+button.danger { background: var(--danger); }
+.anim-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.anim-grid button { font-size: 10px; padding: 4px; }
+
+/* Scrollbar custom */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: #555; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #777; }

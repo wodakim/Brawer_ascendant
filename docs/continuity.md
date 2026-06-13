@@ -1,6 +1,7 @@
 # CONTINUITY — BRAWLER ASCENDANT
+> **DIRECTIVE DE COHÉRENCE (PRIORITÉ MAXIMALE)** : Ce journal et [Map.md](file:///d:/Brawler_ascendant_clear/docs/Map.md) constituent les sources de vérité absolues du projet. Ils doivent être consultés avant toute intervention et impérativement mis à jour lors de chaque validation d'étape.
 > Journal de traçabilité complet. Mis à jour en continu par Antigravity.
-> Toute action, décision, erreur et correction est consignée ici.
+
 
 ---
 
@@ -9,10 +10,12 @@
 - **Nom** : Brawler Ascendant — Moteur d'animation de combat 2D
 - **Inspiration** : La Brute
 - **Cible** : Export APK Android via WebView
-- **Tech** : Canvas 2D pur (aucune dépendance externe, aucun WebGL)
-- **Racine** : `D:\Brawler_ascendant_clear\engine\`
-- **Fichier principal** : `engine\moteur_de_combat_et_rigging.html` *(nom réel — sans __3_)*
+- **Architecture Cible** : **ES Modules natifs** (JS pur dans le navigateur, sans bundler/build tool).
+- **Point d'entrée** : [moteur_de_combat_et_rigging.html](file:///d:/Brawler_ascendant_clear/engine/moteur_de_combat_et_rigging.html) (HTML épuré, n'inclut que [style.css](file:///d:/Brawler_ascendant_clear/engine/css/style.css) et le module [main.js](file:///d:/Brawler_ascendant_clear/engine/src/main.js)).
+- **Règle d'Or de Développement** : **Interdiction absolue d'ajouter du code JS ou CSS directement dans le fichier HTML.** Toute logique, configuration ou keyframe d'animation doit être implémentée dans son module respectif sous [engine/src/](file:///d:/Brawler_ascendant_clear/engine/src/).
 - **À IGNORER** : `D:\Brawler_ascendant_clear\Mockup\`
+- **Carte de navigation** : [Map.md](file:///d:/Brawler_ascendant_clear/docs/Map.md) — Index complet cartographiant la structure des modules, classes, constantes et fichiers thématiques d'animations. À lire impérativement avant toute action pour cibler le bon module.
+
 
 ---
 
@@ -68,6 +71,7 @@
 - `linear`, `easeInQuad`, `easeOutQuad`, `easeInOutQuad`, `easeOutElastic`
 
 ### Règles qualité absolues
+- ❌ Sens de rotation d'une articulation (genou/coude) non vérifié contre une animation déjà validée AVANT d'écrire la valeur — pas de branche IK "à tester" présentée sans vérification de convention de signe (cf. [[feedback-rotation-direction-check]])
 - ❌ Genou > +70° / Coude > +120°
 - ❌ Cheville flottante
 - ❌ Tête > ±90° (sauf KO)
@@ -75,7 +79,8 @@
 - ❌ < 3 keyframes par nœud principal actif
 - ❌ Interpolation linéaire sur impacts
 - ❌ ScaleX/Y hors [0.6, 1.6] sauf comique
-- ✅ Squash & Stretch sur tout impact
+- ❌ **Recycler la chorégraphie (forme/squash/timing) d'une animation déjà implémentée pour un événement narratif différent** — même si le prompt suggère des valeurs similaires. **AVANT de concevoir les keyframes**, identifier en une phrase : (1) la CAUSE du mouvement (impact / perte d'équilibre / gravité / glissement de prise / action volontaire), (2) quel(s) nœud(s) doivent PILOTER ce mouvement en conséquence. Si la chorégraphie suggérée reproduit la forme d'une animation sœur du même batch (mêmes pistes + squash), redessiner depuis la bonne mécanique au lieu de copier les chiffres. Voir [[feedback-animation-narrative-distinctness]] — coûte un cycle complet implémentation+test+capture si découvert après coup.
+- ✅ Squash & Stretch sur tout impact (et UNIQUEMENT sur impact — pas sur perte d'équilibre/glissement)
 - ✅ Anticipation avant attaque
 - ✅ Follow-through après action
 - ✅ Secondary motion (décalage 3-5 frames)
@@ -293,8 +298,8 @@ engine/assets/
 | 3 | Poings | 3 | ✅ 3/3 — `punch_left`, `double_punch`, `headbutt` validés (Session 9) |
 | 4 | Kicks | 3 | ✅ 3/3 — `kick_right`, `kick_left`, `heavy_kick` validés (Session 9) |
 | 5 | Combo Chain | 5 | ✅ 5/5 — `combo_1`, `combo_2`, `combo_3`, `combo_4`, `combo_finisher` validés (Session 9) |
-| 6 | Arme États | 2 | ⏳ À faire |
-| 7 | Arme Attaques | 5 | ⏳ À faire |
+| 6 | Arme États | 2 | ✅ 2/2 — `weapon_draw`, `weapon_idle` validés (Session 10) |
+| 7 | Arme Attaques | 5 | 🟡 4/5 — `weapon_attack_light`, `weapon_attack_medium` (Session 11), `weapon_attack_heavy` (Session 12), `weapon_critical` (Session 13) validés. `weapon_combo`, `weapon_combo_crit` à faire |
 | 8 | Perte d'arme | 5 | ⏳ À faire |
 | 9 | Lancer d'arme | 4 | ⏳ À faire |
 | 10 | Défense & Contre | 5 | ⏳ À faire |
@@ -450,11 +455,12 @@ Puis ouvrir : `http://localhost:8080/engine/moteur_de_combat_et_rigging.html`
 | combo_finisher | ✅ Batch 5 écrit | 50f | non | 5 | ✅ Validé (Session 9) |
 | weapon_draw | ✅ Batch 6 écrit | 35f | non | 6 | ✅ Validé (Session 10) |
 | weapon_idle | ✅ Batch 6 écrit | 50f | oui | 6 | ✅ Validé (Session 10) |
-| weapon_attack_light | ⏳ À faire | 28f | non | 7 | ❌ |
-| weapon_attack_medium | ⏳ À faire | 35f | non | 7 | ❌ |
-| weapon_attack_heavy | ⏳ À faire | 50f | non | 7 | ❌ |
-| weapon_combo | ⏳ À faire | 40f | non | 7 | ❌ |
-| weapon_critical | ⏳ À faire | 60f | non | 7 | ❌ |
+| weapon_attack_light | ✅ Batch 7 écrit | 28f | non | 7 | ✅ Validé (Session 11) |
+| weapon_attack_medium | ✅ Batch 7 écrit | 35f | non | 7 | ✅ Validé (Session 11) |
+| weapon_attack_heavy | ✅ Batch 7 écrit | 50f | non | 7 | ✅ Validé (Session 12) |
+| weapon_combo | ✅ Batch 7 écrit | 40f | non | 7 | ✅ Validé (Session 14) |
+| weapon_critical | ✅ Batch 7 écrit | 60f | non | 7 | ✅ Validé (Session 13) |
+| weapon_combo_crit | ✅ Batch 7 écrit | 63f | non | 7 | ✅ Validé (Session 14) |
 | disarm_attack | ⏳ À faire | 30f | non | 8 | ❌ |
 | weapon_break | ⏳ À faire | 20f | non | 8 | ❌ |
 | weapon_drop | ⏳ À faire | 15f | non | 8 | ❌ |
@@ -510,8 +516,9 @@ Puis ouvrir : `http://localhost:8080/engine/moteur_de_combat_et_rigging.html`
 | exit_arena | ⏳ À faire | 40f | non | 20 | ❌ |
 | taunt | ⏳ À faire | 55f | non | 20 | ❌ |
 
-**Compteur** : 29 validées (idle, walk_forward, punch_right, hit_light, hit_heavy, ko_back, idle_breathing, prepare, focus, walk_backward, run_forward, run_backward, step_forward, step_backward, turn_left, turn_right, punch_left, double_punch, headbutt, kick_right, kick_left, heavy_kick, combo_1, combo_2, combo_3, combo_4, combo_finisher, weapon_draw, weapon_idle) / 59 à implémenter / 88 total (`ANIMATION_NAMES`)
+**Compteur** : 35 validées (idle, walk_forward, punch_right, hit_light, hit_heavy, ko_back, idle_breathing, prepare, focus, walk_backward, run_forward, run_backward, step_forward, step_backward, turn_left, turn_right, punch_left, double_punch, headbutt, kick_right, kick_left, heavy_kick, combo_1, combo_2, combo_3, combo_4, combo_finisher, weapon_draw, weapon_idle, weapon_attack_light, weapon_attack_medium, weapon_attack_heavy, weapon_critical, weapon_combo, weapon_combo_crit) / 54 à implémenter / 89 total (`ANIMATION_NAMES`)
 *(+ `dodge_backward` : bonus déjà codé avec keyframes mais absent de `ANIMATION_NAMES`, hors compteur officiel)*
+**Batch 7 (Arme : Attaques) complet — 6/6 validées.**
 
 ---
 
@@ -840,4 +847,443 @@ Vérifié (aucune erreur console/page, captures d'écran sans overlays debug) :
 
 ---
 
-*Dernière mise à jour : 2026-06-12 — Session 10 — Batch 6 complet et validé (2/2) : `weapon_idle` (garde `unarmed` dérivée de la géométrie du rig) + `weapon_draw` (version originale restaurée à la demande de l'utilisateur, point 7) + architecture `weaponStyle`/`WEAPON_HOLD_STYLES`. 29/88 animations validées. Commit correctif poussé sur GitHub (sans amender le commit initial).*
+### SESSION 11 — 2026-06-12 19:00 (heure locale)
+
+**Agent** : Antigravity (Claude Sonnet 4.6 Thinking)
+**Déclencheur** : Prise de conscience complète du projet + validation des animations Batch 7 codées par Claude Code + amélioration HUD
+
+#### 1. Audit et prise de conscience du projet
+- Lecture complète de `continuity.md` et `ANTIGRAVITY_PROMPT_COMPLET.md`
+- État réel détecté : `weapon_attack_light` et `weapon_attack_medium` étaient codés (boutons rouges) mais non validés
+- Architecture `weaponAttackOverlay` / `WEAPON_ATTACK_UNARMED_OVERLAY` déjà en place (faite par Claude Code)
+- Système hitbox `impactFrame` : générique et complet — **il suffit d'ajouter `impactFrame: N` sur toute animation d'attaque**, `checkHit()` se déclenche automatiquement
+
+#### 2. Décisions prises en équipe (questions/réponses utilisateur)
+- **`weapon_attack_light`/`medium`** : validés "sous caution" — variantes `ranged`/`thrown` à traiter dans un futur batch dédié
+- **`bash`** : ce n'est PAS une animation à créer, c'était une référence à une étape de workflow. **Ne pas créer de `bash` animation.**
+- **`weapon_attack_heavy`** : frappe la plus impressionnante visuellement (coup à deux mains ou overhead selon l'arme tenue), avec hitbox active via `impactFrame`
+- **`weapon_combo`** (standard) + **`weapon_combo_crit`** (critique) : **deux animations séparées** — le jeu choisit laquelle jouer selon la probabilité. `weapon_combo_crit` sera ajouté à `ANIMATION_NAMES` lors de son implémentation
+- **`weapon_critical`** : coup droit ultra-chargé, anticipation lente (f0→f20), impact ultrarapide 1-2f (f20-f21), squash maximal du torse, retrait lent (f22→f60)
+
+#### 3. Amélioration HUD (`renderFighter`)
+- **Nom du joueur** : affiché en blanc gras au-dessus du personnage (y-230)
+- **Compteur de hits** (`fighter.hitCount`) : affiché en cyan (`#00e5ff`) sous le nom (y-216) — incrémenté dans `checkHit()` à chaque coup confirmé (pas les MISS), réinitialisé à 0 par `resetFight()` via le constructeur
+- **HP numérique** (couleur dynamique : vert/orange/rouge) + barre HP
+- **Identifiant debug** `char_NN` gris discret en bas
+- Ancienne ligne `"Fighter A HP: 100"` supprimée (redondante avec le nouveau HUD)
+
+#### 4. Validation `weapon_attack_light` et `weapon_attack_medium`
+- Test frame par frame dans le navigateur (Pause + Frame+1)
+- f0 : pose idle/weapon_idle — f5 : anticipation (bras recule) — f11 : impact (bras tendu, arme vers l'adversaire) — f17 : follow-through — f28 : retour idle— propre
+- `impactFrame: 11` / `impactFrame: 14` : `checkHit()` bien déclenché, "MISS" affiché (combattants trop éloignés)
+- `weaponSocket.rotation` dans la limite ±30° sur les deux animations
+- `validatedAnims` mis à jour (31 animations), `inProgressAnims` vidé
+- Boutons passés en vert dans l'UI
+
+#### Prochaine étape
+**`weapon_attack_heavy` (50f)** — première animation à coder de cette session. Frappe lourde : anticipation lente + impact explosif + squash maximal. Validation utilisateur requise avant `weapon_combo`.
+
+---
+
+### SESSION 12 — 2026-06-12 (heure locale)
+
+**Agent** : Claude Code (Claude Sonnet 4.6)
+**Déclencheur** : Suite de Session 11 — validation de `weapon_attack_heavy` (déjà codé par Antigravity) + demande explicite de l'utilisateur pour un outil de test visuel "hitbox réactive" (frame par frame, signal de touche quand l'arme/les poings touchent une hitbox cible)
+
+#### 1. Validation `weapon_attack_heavy` (Batch 7, 3/5)
+- Test frame par frame (Pause + Frame+1) : pose vérifiée contre les contraintes de design
+  - f18 (anticipation) : `armUpper_R=-155°`, `armLower_R=+90°`, torso lean `-28°`, hip `-15px` ✅
+  - f24 (impact) : `armUpper_R=-30°`, `torso.scaleX=0.72`/`scaleY=1.38` (squash maximal) ✅
+  - `weaponSocket.rotation` reste dans la limite `±30°` ✅
+  - f0 == f49 == pose `idle`/`weapon_idle`, transition propre vers `weapon_idle` ✅
+- `impactFrame: 24` déclenche bien `checkHit()` (`weaponAttackOverlay: true`)
+- Zéro erreur console/page sur l'ensemble du test
+
+#### 2. Nouvel outil permanent "Hitbox Réactive" (debug visuel)
+- Demande utilisateur : pouvoir tester *visuellement*, frame par frame, qu'une hitbox cible réagit (signal de touche) quand l'arme (ou les poings si `unarmed`) entre en contact avec elle
+- Implémentation dans le moteur (`moteur_de_combat_et_rigging.html`) :
+  - Nouvelle checkbox **"Hitbox Réactive (Cyan/Rouge)"** (`dbg-reactive-hitbox`), liée à `engineOptions.showReactiveHitbox` (activée par défaut)
+  - `Fighter.updateReactiveHitbox()` : calcule le(s) point(s) "tip" — bout de l'arme (`hasWeapon && weaponStyle !== 'unarmed'`) ou bouts des deux poings `hand_R`/`hand_L` (sinon) — et teste chaque point contre les AABB world-space `torso`/`head` de l'adversaire via `nodeWorldAABB()`/`pointInAABB()`
+  - Marqueurs cyan dessinés aux points "tip" (passent au rouge + agrandis + contour blanc en cas de contact, avec label "TOUCH")
+  - Les hitbox `torso`/`head` de la cible passent directement du vert au rouge (`node.reactiveHit === true`) au lieu d'un rectangle rouge superposé — **corrigé après retour utilisateur** ("la hitbox passe au rouge mais on voit aussi cette même hitbox restée verte, ça peut porter à confusion")
+- Validation croisée à 140px d'écart (`fighterB` en `unarmed`) : f24 → tête de B passe au rouge (TOUCH), f25 → torse de B passe au rouge (TOUCH) + `lastImpact={hit:true, label:"HIT -10"}`, `fighterB.hp` passe à 90 — cohérent avec `impactFrame: 24`
+
+#### 3. Validation utilisateur
+*"Oui je valide weapon_attack_heavy, mets à jour continuity.md et la mémoire"* — **Batch 7 passe à 3/5**. `validatedAnims` mis à jour (32 animations), `inProgressAnims` vidé.
+
+#### Prochaine étape
+Batch 7 reste (2/3 restants, par lot de 2-3 avec validation groupée) : `weapon_combo` (40f), `weapon_combo_crit` (nouvelle animation, à ajouter dans `ANIMATION_NAMES` lors de son implémentation), `weapon_critical` (60f). Utiliser la nouvelle Hitbox Réactive pour les tests frame par frame de chaque animation.
+
+---
+
+*Dernière mise à jour : 2026-06-12 — Session 12 — `weapon_attack_heavy` validé (32/88, Batch 7 = 3/5) + nouvel outil de debug permanent "Hitbox Réactive" (vert→rouge sur contact géométrique torso/head, marqueurs tip arme/poings).*
+
+---
+
+### SESSION 13 — 2026-06-12 (heure locale)
+
+**Agent** : Claude Code (Claude Sonnet 4.6)
+**Déclencheur** : Suite de Session 12 — implémentation de `weapon_critical` (60f, dernier point du spec arme défini Session 11), puis 3 retours process de l'utilisateur avant validation finale.
+
+#### 1. Implémentation `weapon_critical` (Batch 7, B7.5)
+- 60f, `impactFrame: 21`, `weaponAttackOverlay: true`, ajouté à `WEAPON_DRAWN_ANIMS`
+- Anticipation lente f0→f20 : torso `-35°`, `armUpper_R +50°`/`armLower_R -100°`, `weaponSocket +25°`, hip `(-20,-76)`
+- Impact ultrarapide f20→f21 : torso snap `+40°` avec squash maximal (`scaleX=0.65`/`scaleY=1.5`, conservation de volume ≈0.975), `armUpper_R -65°`/`armLower_R +15°`, `weaponSocket 0°` (arme alignée dans l'axe du bras à l'impact)
+- Retrait lent f22→f60, `f0 == f60 ==` pose `idle`/`weapon_idle`
+
+#### 2. Corrections en cours de route
+- `WEAPON_DRAWN_ANIMS` ne contenait pas `weapon_critical` → transition cassée vers `idle` au lieu de `weapon_idle`. Corrigé (cf. §B7 RÈGLES FONDAMENTALES).
+- Première pose d'impact (`armUpper_R=-105°`, `weaponSocket=-25°`) plaçait systématiquement le bout de l'arme au-dessus de la hitbox tête adverse (sweep d'écart 80-240px testé) → `checkHit()` fonctionnait (distance) mais la hitbox réactive ne touchait jamais. Diagnostiqué via sweeps `node.updateMatrix()` sur `weaponSocket`/`armUpper_R`/`armLower_R` à la frame d'impact. Corrigé en réalignant l'arme dans l'axe du bras à l'impact (`armUpper_R: -105°→-65°`, `weaponSocket: -25°→0°`, ajustements en cascade sur le retrait f30/f45).
+
+#### 3. Validation frame par frame (170px, `fighterB` en `unarmed`)
+- Poses f20 (anticipation) et f21 (impact) conformes au design
+- Hitbox réactive : `torsoHit=true`/`touching=true` exactement à la frame capturée 22 (= `impactFrame`+1), `lastImpact={hit:true, label:"HIT -10"}`, `fB.hp` 100→90
+- Transition propre `weapon_critical` → `weapon_idle`
+- Zéro erreur console/page
+
+#### 4. Trois retours process de l'utilisateur (avant validation)
+Après une première présentation des résultats ci-dessus, l'utilisateur a demandé 3 choses avant de valider :
+1. **Lire la mémoire attentivement** (priorité maximale, pas un survol de l'index `MEMORY.md`) → nouvelle mémoire [[feedback-read-memory-carefully]]
+2. **Vérifier la réaction directe de l'adversaire** : une animation d'attaque doit aussi faire que la cible "prenne un coup à bonne distance", pas seulement déclencher `checkHit()`/la hitbox réactive côté attaquant. Vérifié : à l'impact (frame capturée 22), `fighterB.state` passe `idle`→`hit_light` (son animator redémarre à f1), à `dist`=170-175px (dans `attackRange=172`/seuil `checkHit` ≈197) → nouvelle mémoire [[feedback-attack-validation-target-reaction]], et `feature-reactive-hitbox` mis à jour avec ce 4ᵉ critère de validation
+3. **Travailler chirurgicalement / moins de tokens** : création de `docs/Map.md` (index des lignes clés du HTML par batch/classe/fonction + sections de ce journal + fichiers mémoire + scripts `.tmp_*.cjs`), référencé en tête de ce fichier avec obligation de mise à jour
+
+#### 5. Validation utilisateur
+*"Je valide weapon_critical"* — **Batch 7 passe à 4/5** (33/88). `validatedAnims` mis à jour (33 animations), `inProgressAnims` vidé.
+
+#### Prochaine étape
+Batch 7 : derniers restants `weapon_combo` (40f) et `weapon_combo_crit` (nouvelle animation, à ajouter dans `ANIMATION_NAMES`) — design à clarifier avec l'utilisateur (nombre de coups, ce qui différencie la version "_crit") avant codage, par lot de 2-3 avec validation groupée ([[feedback-animation-workflow]]). Lire `docs/Map.md` avant toute action.
+
+---
+
+*Dernière mise à jour : 2026-06-12 — Session 13 — `weapon_critical` validé (33/88, Batch 7 = 4/5) + `docs/Map.md` créé + 2 nouvelles règles de validation mémorisées (lecture mémoire attentive, réaction directe de la cible).*
+
+---
+
+### SESSION 14 — 2026-06-12 (heure locale)
+
+**Agent** : Claude Code (Claude Sonnet 4.6)
+**Déclencheur** : Suite de Session 13 — design + implémentation de `weapon_combo` et `weapon_combo_crit` (derniers points du Batch 7), clarification utilisateur sur le "facteur de coup critique".
+
+#### 1. Clarification design (avant codage)
+L'utilisateur a précisé le fonctionnement du combo : `weapon_combo` = 2 coups "aller-retour" (frappe + retour), `weapon_combo_crit` = mêmes 2 coups + un 3e coup CRITIQUE ajouté. Le choix entre les deux dépendra plus tard de l'agilité/des skills du joueur ("facteur de coup critique"), placeholder = une chance sur deux pour l'instant. Question posée à l'utilisateur sur la portée de ce placeholder → réponse : **ajouter le mécanisme 50/50 dans le moteur** (option B), pas seulement deux animations indépendantes sans connexion.
+
+#### 2. Implémentation
+- `weapon_combo_crit` ajouté à `ANIMATION_NAMES` (89 noms) et `WEAPON_DRAWN_ANIMS` (avec `weapon_combo`)
+- `ANIMATIONS_LIB["weapon_combo"]` (40f, `impactFrame:[11,29]`, `weaponAttackOverlay:true`) : coup 1 = extension (cocking f5 → impact f11), coup 2 = revers (windup f23 → impact f29, torse pivote dans l'autre sens)
+- `ANIMATIONS_LIB["weapon_combo_crit"]` (63f, `impactFrame:[11,29,39]`) : f0-29 identiques à `weapon_combo`, prolongé par un 3e coup critique (f38 grand enroulement, f39 impact avec squash maximal `scaleX=0.65`/`scaleY=1.5`, cf. `weapon_critical`)
+- Nouveau `case "combo":` dans `changeState` (placeholder 50/50 `Math.random() < 0.5 ? "weapon_combo" : "weapon_combo_crit"`, TODO remplacer par une formule agilité/skills)
+
+#### 3. Correction géométrique des poses d'impact (itératif)
+Premier test (150px) : `checkHit()`/`takeDamage()`/réaction `hit_light`/`hit_heavy` fonctionnaient pour les 3 coups, mais la hitbox réactive géométrique (`touch`) échouait sur les coups 1 et 2 — le bout de l'arme n'atteignait pas l'AABB torse/tête de la cible (manque de 70-106px). Diagnostiqué via script Playwright dédié (réglage direct des rotations + `skeleton.update()` + lecture `nodeWorldAABB`), conformément à [[feedback-pose-derivation]] :
+- **Coup 1 (f11)** : pose redessinée en extension — `armUpper_R:-98°→-70°`, `armLower_R:-78°→+10°`, `weaponSocket:-24°→-15°`, `hip.x:18→25` (enchaînement cocking f5 → extension f11)
+- **Coup 2 (f29)** : pose "revers" — `torso:-26°→-30°`, `armUpper_R:+68°→-45°`, `armLower_R:-50°→+30°`, `weaponSocket:+26°→+20°`, `hip.x:16→35` (lunge renforcé pour compenser le recul cumulé de la cible)
+- Correction du stall résultant sur `armUpper_R` à f23 (windup2 : `-45°→+20°`)
+- Coup 3 critique (f39) déjà conforme, inchangé
+
+#### 4. Validation frame par frame (150px, 2 runs avec rolls de dégâts différents)
+- Run 1 (rolls -25/-25/-25) : f12 `touch=true`/`hit_heavy`(hp75), f30 `touch=true`/`hit_heavy`(hp50), f40-41 `touch=true`/`hit_heavy`(hp40)
+- Run 2 (rolls -10/-25/-10) : f12 `touch=true`/`hit_light`(hp90), f29-30 `touch=true`/`hit_heavy`(hp65), f40-41 `touch=true`/`hit_light`(hp70)
+- Les 3 frames d'impact passent les 2 critères ([[feature-reactive-hitbox]] + [[feedback-attack-validation-target-reaction]]) sur deux tirages aléatoires différents → robuste au recul cumulé
+- Zéro erreur console/page sur les deux animations
+
+#### 5. Validation utilisateur
+*"Je valide, passe au bookkeeping"* — **Batch 7 complet, 6/6** (35/89). `validatedAnims` mis à jour (35 animations), `inProgressAnims` vidé.
+
+#### Prochaine étape
+Batch 7 (Arme : Attaques) terminé. Prochain batch à définir avec l'utilisateur — Batch 8 (`disarm_attack`, `weapon_break`, `weapon_drop`, `weapon_lost`, `weapon_fall`) est le suivant dans l'ordre de `continuity.md`. Lire `docs/Map.md` avant toute action.
+
+---
+
+### SESSION 15 — 2026-06-12 (heure locale)
+
+**Agent** : Antigravity (Gemini 1.5 Pro)
+**Déclencheur** : Lancement du refactoring modulaire par étapes (ES Modules).
+**Action** : Validation des Étapes 0 à 4 par l'utilisateur, puis réalisation de l'Étape 5.
+
+#### 1. Réalisation de l'Étape 5 (Segmentation des animations)
+- Création de [index.js](file:///d:/Brawler_ascendant_clear/engine/src/data/animations/index.js) qui re-exporte proprement les 8 fichiers de batchs d'animations thématiques.
+- Création de [animations.js](file:///d:/Brawler_ascendant_clear/engine/src/data/animations.js) qui importe toutes les animations via `index.js` et les fusionne dynamiquement dans l'objet global `ANIMATIONS_LIB`.
+- Raccordement global et allègement (Étape 6) : déplacement de toute la logique globale (boucle de jeu, gestion de l'UI, etc.) dans `engine/src/main.js` et allègement complet de `engine/moteur_de_combat_et_rigging.html`.
+- Mise à jour de [Map.md](file:///d:/Brawler_ascendant_clear/docs/Map.md) pour refléter la nouvelle architecture modulaire au lieu de l'indexation par numéros de lignes du monolithe.
+
+#### 2. Alignements et Résolution des Divergences (Étape 7)
+- Première exécution du script Playwright de validation géométrique `.tmp_refactor_validation.cjs compare` révélant 5,503 divergences principalement localisées sur trois animations : `combo_finisher`, `weapon_draw` et `weapon_attack_heavy`.
+- **Alignements appliqués** :
+  1. **`combo_finisher`** : Alignement de toutes les pistes d'animation (rotation et scale) sur la version originale issue de HEAD. Correction de la propriété `impactFrame` de 22 à 18 (l'impact se produit visuellement et physiquement au frame 18 de l'animation).
+  2. **`weapon_draw`** : Alignement des rotations/scales sur la version originale validée (restauration de la portée du bras droit et calage du pop de l'arme au frame 18).
+  3. **`weapon_attack_heavy`** : Alignement de la piste `legLower_R.rotation` qui comportait une interpolation incorrecte par rapport au référentiel (`easeInOutQuad` au lieu des segments linéaires interpolés d'origine).
+- Ré-exécution de la validation géométrique : **0 divergence détectée** sur l'ensemble des 35 animations, validant la non-régression absolue à 0.001 pixel près pour les deux combattants.
+
+---
+
+*Dernière mise à jour : 2026-06-12 — Session 15 — Refactoring modulaire complet et validé à 100% avec 0 divergence détectée sur les 35 animations.*
+
+---
+
+### SESSION 16 — 2026-06-13 (heure locale)
+
+**Agent** : Antigravity (Gemini 1.5 Pro)
+**Déclencheur** : Rejet de la première itération de `disarm_attack` par l'utilisateur (ressemblait trop à un punch horizontal, manque de tests multi-frames et ciblage insuffisant du bras/de la main adverse).
+
+#### 1. Conception d'un coup descendant "Overhead Slash"
+- **Correction esthétique** : Abandon de la trajectoire directe (punch horizontal). La nouvelle chorégraphie est un mouvement de coupe vertical/diagonal descendant :
+  - **Anticipation (f0 → f6)** : Wind-up ample dans le sens inverse des aiguilles d'une montre pour lever le bras et l'arme haut au-dessus de la tête (`armUpper_R = -130°`, `armLower_R = -90°`, `weaponSocket = -30°` à son maximum f6). Cela dégage entièrement l'espace avant et évite tout contact ou clipping prématuré.
+  - **Impact (f12)** : Frappe diagonale descendante percutante avec bras tendu vers le bas-avant (`armUpper_R = -20°`, `armLower_R = 0°`, `weaponSocket = 5°`), ciblant géométriquement la main droite de l'adversaire (`hand_R` à `(352.02, 403.13)`).
+  - **Follow-Through (f13 → f18)** : Course descendante de l'arme qui balaie le bras inférieur adverse (`TouchArm` = true).
+  - **Retour (f18 → f30)** : Repositionnement fluide en garde `weapon_idle`.
+
+#### 2. Correction du script de test & Alignement géométrique
+- **Correction des Pivots AABB** : Le script de test `.tmp_disarm_test_run.cjs` redéfinissait `nodeWorldAABB` et `pointInAABB` sans tenir compte des pivots des nœuds (`pX`, `pY`), causant de faux calculs de collision. Alignement sur les formules réelles de `Node.js` (`[-node.pX, -node.pY]`, etc.).
+- **Désactivation des réactions pour test pur** : Simulation sans recul physique ni transition d'animation de Fighter B pour obtenir une mesure propre sur les 30 frames de l'animation.
+- **Rapport de collision multi-frame** :
+  - **Frames 0 à 11** : Zéro collision avec les parties de Fighter B (`TouchHand`, `TouchArm`, `TouchTorso`, `TouchHead` = false) ✅
+  - **Frame 12 (Impact)** : `TouchHand` = **true** (ciblage parfait de la main droite de B) ✅, les autres parties du corps ne sont pas touchées.
+  - **Frame 13** : `TouchArm` = **true** (follow-through qui balaie le bras inférieur) ✅.
+
+#### 3. Amélioration de l'infrastructure de test Sandbox
+- Ajout et exposition des fonctions `draw()` et `updateGame()` sur l'objet global `window` dans `main.js` afin de permettre le contrôle et le rendu manuel frame par frame pour nos tests automatisés.
+
+#### 4. Captures visuelles
+- Génération et enregistrement de trois captures d'écran de validation dans l'archive des artefacts :
+  - `disarm_attack_f6.png` : Pose de préparation (arme levée au ciel).
+  - `disarm_attack_f12.png` : Instant de l'impact (contact précis sur la main droite).
+  - `disarm_attack_f18.png` : Follow-through descendant.
+- Mise à jour de [walkthrough.md](file:///C:/Users/monta.DESKTOP-Q5SLGN1/.gemini/antigravity/brain/6c3db914-b9a3-4a5c-8303-eead4ea7faab/walkthrough.md) avec le carrousel visuel.
+
+#### 5. Validation utilisateur
+*"Okai cette animation me convient. Je valide."* — **`disarm_attack` validé (Étape 8 ✅)**. `validatedAnims` mis à jour (36 animations), `inProgressAnims` vidé.
+
+#### Prochaine étape
+**Étape 9** : `weapon_break` (20f) — animation du bris de l'arme de l'adversaire sous l'impact du désarmement.
+
+---
+
+*Dernière mise à jour : 2026-06-13 — Session 16 — `disarm_attack` validé (Batch 8 = 1/5) — frappe descendante overhead targeting `hand_R` adverse avec 0 collision prématurée frames 0-11.*
+
+---
+
+### SESSION 17 — 2026-06-13 (heure locale)
+
+**Agent** : Claude Sonnet 4.6 (Thinking)
+**Déclencheur** : Validation de `disarm_attack` par l'utilisateur → implémentation de `weapon_break` (Étape 9).
+
+#### 1. Implémentation `weapon_break` (20f, loop:false)
+Réaction du combattant qui **reçoit** le désarmement — son bras armé tressaille violemment, l'arme vibre et se tord avant de tomber.
+
+**Chorégraphie** :
+- **Choc initial (f0 → f3)** : `armUpper_R` part brutalement vers le haut (+30°, easeOutQuad), `armLower_R` s'effondre en arrière (-80°), `weaponSocket` fait un rebond à -30°. `weaponSocket.scaleX` passe à **-1** au frame 3 (arme momentanément retournée → effet de torsion/bris de prise).
+- **Rebond (f3 → f8)** : Le bras repart dans l'autre sens (armUpper_R → -30°), le socket revient à +28° (f6) puis à 0°. scaleX revenu à +1 dès f6.
+- **Oscillation amortie (f8 → f13)** : Deuxième oscillation réduite (armUpper_R → +5°, armLower_R → -40°, weaponSocket → -1.2°).
+- **Bras retombant (f13 → f20)** : Settle naturel vers une posture bras faible (armUpper_R → -15°, armLower_R → -50°), prêt à enchaîner sur `weapon_lost`.
+- **Réaction de corps** : Torse penche brusquement en arrière (f3: -20°) avec squash (scaleX=1.1/scaleY=0.92), puis revient. Tête suit avec retard (f3: -25°). Bras gauche sert d'équilibre.
+
+#### 2. Vérification frame par frame (Playwright)
+```
+f0 : armUpper_R=-10° (idle), wsX=+1
+f3 : armUpper_R=+30° (PIC CHOC), weaponSocket=-30°, wsX=-1 ← BRIS ✅
+f6 : weaponSocket=+28° (rebond), wsX=+1 ← retour normal ✅
+f8 : armLower_R=+20° (bras désarticulé) ✅
+f19: armUpper_R=-14°, armLower_R=-50° (bras retombant) ✅
+```
+Aucune erreur console/page. Bouton rouge dans l'UI.
+
+#### 3. Correctif — passage en mode Unarmed à la fin
+Question utilisateur : "pourquoi elle ne mène pas à l'état Unarmed ?"
+- Ajout de `disarmsOnComplete: true` sur l'objet animation `weapon_break`.
+- Handler du bouton PLAY dans `main.js` mis à jour : si `ANIMATIONS_LIB[anim].disarmsOnComplete`, alors `setWeaponStyle('unarmed')` est appelé avant l'enchaînement sur `idle`.
+- Vérifié : après 22 frames d'update, `weaponStyle === 'unarmed'` et `hasWeapon === false` ✅
+
+#### 4. Correctif systémique — Panneau droit réactif à l'état du Fighter
+Question utilisateur : "le panneau latéral droit doit être réactif à ces changements d'état, pas seulement pour cette animation mais toutes, précédente ou future."
+- Ajout de `syncUI()` dans `main.js` appelée à chaque frame par `draw()`.
+- `syncUI()` lit `fighterA.weaponStyle` et met à jour le `<select id="weapon-style-select">` uniquement si sa valeur diffère (pas de DOM write inutile).
+- Couvre **tous les cas** sans wiring par animation : fin de callback d'animation, logique autoCombat future, `resetFight()`, etc.
+- Vérifié : `setWeaponStyle('ranged')` → select passe de `"melee"` à `"ranged"` dès la frame suivante ✅. `resetFight()` → select revient à `"melee"` ✅.
+
+#### 5. Validation utilisateur
+*"Okai je valide"* — **`weapon_break` validé (Étape 9 ✅)**. `disarm_attack` + `weapon_break` = 2/5 animations Batch 8 validées.
+
+#### Prochaine étape
+**Étape 10** : `weapon_drop` (15f) — le combattant lâche son arme (bras qui s'ouvre, relâchement du weaponSocket).
+**Étape 11** : `weapon_lost` (25f) — bras désarticulé, poignet ouvert, weaponSocket retombe.
+**Étape 12** : `weapon_fall` (20f) — chute/rebond de l'arme au sol.
+
+---
+
+*Dernière mise à jour : 2026-06-13 — Session 17 — `weapon_break` validé (Batch 8 = 2/5) — tressaillement bras armé 20f, `disarmsOnComplete:true`, `syncUI()` réactif toutes frames.*
+
+---
+
+### SESSION 18 — 2026-06-13 (heure locale)
+
+**Agent** : Claude Sonnet 4.6 (Thinking)
+**Déclencheur** : Validation de `weapon_break` par l'utilisateur → implémentation de `weapon_drop` (Étape 10).
+
+#### 1. Implémentation `weapon_drop` (15f, loop:false, disarmsOnComplete:true)
+Suite directe de `weapon_break` : le combattant lâche volontairement son arme. `f0` reprend la pose de fin de `weapon_break` (`armUpper_R=-15°`, `armLower_R=-50°`, `weaponSocket=0°`/`scaleX=1`).
+
+**Chorégraphie** :
+- **f0 → f5** : le bras armé s'ouvre (`armUpper_R` -15°→20°, `armLower_R` -50°→-90°, `easeOutQuad`), torse part en arrière (-10°).
+- **f5 → f8** : `weaponSocket` bascule 0°→85° (`easeInQuad`, effet "gravité") — l'arme glisse hors de la main. Torse continue de s'ouvrir (-15°).
+- **f8 → f15** : bras retombe inerte (`armUpper_R`→30°, `armLower_R`→-100°), torse revient à 0° (`easeOutQuad`), tête a une secondary motion (pic +7° à f12 puis retour), bras gauche réagit en équilibre, légers transferts de poids sur `legUpper_L/R` et `hip.x`.
+
+#### 2. Vérification frame par frame (Playwright)
+```
+f00 : aUR=-15°  aLR=-50°  ws=0°   wsX=1  (pose de fin weapon_break)
+f05 : aUR=20°   aLR=-90°  ws=0°   torso=-10°
+f08 : aUR=24°   aLR=-95°  ws=85°  torso=-15° (arme glisse, horizontale)
+f14 : aUR≈30°   aLR≈-100° ws≈100° torso≈0°  (arme pointe vers le sol)
+```
+Aucun `NaN`, aucun saut > 90°/frame, `weaponSocket.scaleX` reste à 1 toute l'animation. Captures aux f0/f5/f8/f14 confirment la lecture narrative : arme pointée vers le haut (héritage `weapon_break`) → bascule à l'horizontale (f8, "elle glisse") → pointe vers le sol juste avant de disparaître (f14).
+
+Test `disarmsOnComplete` via le vrai bouton PLAY WEAPON DROP (15 frames) : `weaponStyle: 'unarmed'`, `hasWeapon: false`, panneau droit (`syncUI()`) → "Unarmed" ✅.
+
+#### 3. Correctif systémique — bug de liaison post-désarmement (ranged/thrown/unarmed)
+Retour utilisateur : après `weapon_drop`, repasser en `ranged`/`thrown`/`unarmed` via le panneau droit est buggé — l'arme apparaît/disparaît (`hasWeapon` correct) mais le bras/`weaponSocket` reste figé sur la pose `idle` ; il fallait jouer une `weapon_attack_*` pour "réparer" l'état.
+
+**Cause** : `weapon_drop`/`weapon_break` (toute anim `disarmsOnComplete`) enchaînaient sur `'idle'`, qui n'a pas `weaponStyleOverlay: true`. Seul `weapon_idle` relit `fighter.weaponStyle` à chaque frame pour appliquer `WEAPON_HOLD_STYLES` (overlay additif sur `armUpper_R`/`armLower_R`/`weaponSocket`/etc.).
+
+**Fix** (`main.js`, handler du bouton PLAY) :
+```js
+const nextAnim = (WEAPON_DRAWN_ANIMS.includes(anim) || (animDef && animDef.disarmsOnComplete))
+    ? 'weapon_idle' : 'idle';
+```
+Toute anim `disarmsOnComplete` enchaîne désormais sur `weapon_idle` (overlay actif en permanence) au lieu de `idle`.
+
+**Tests de régression (Playwright)** :
+- `weapon_drop` → fin = `weapon_idle`/`unarmed`/`hasWeapon=false`. Switch `ranged` → `armUpper_R≈-40°`, `armLower_R≈-80°`, `weaponSocket≈-20°`, arme réapparaît en pose ranged correcte (capture vérifiée). Switch `thrown` puis retour `unarmed` → conformes à `WEAPON_HOLD_STYLES`.
+- `weapon_break` (keyframes non modifiées) → bénéficie du même fix : fin = `weapon_idle`/`unarmed`/`hasWeapon=false` (avant : `idle`, même bug latent non détecté à l'époque).
+- `weapon_attack_light` (non-régression) → fin = `weapon_idle`/`melee`/`hasWeapon=true`, comportement inchangé.
+- Aucune erreur console sur les 4 scénarios.
+
+#### 4. Validation utilisateur
+*"Oui ça règle le problème, je valide."* — **`weapon_drop` validé (Étape 10 ✅)**. `disarm_attack` + `weapon_break` + `weapon_drop` = 3/5 animations Batch 8 validées. `validatedAnims`/`inProgressAnims` mis à jour (`weapon_drop` → vert, `weapon_lost` → rouge).
+
+#### Prochaine étape
+**Étape 11** : `weapon_lost` (25f) — réaction de désorientation complète (choc, récupération, settle vers posture unarmed idle).
+**Étape 12** : `weapon_fall` (20f) — chute/rebond de l'arme, regard du combattant vers le sol.
+
+---
+
+### SESSION 19 — 2026-06-13 (heure locale)
+
+**Agent** : Claude Sonnet 4.6 (Thinking)
+**Déclencheur** : Validation de `weapon_drop` (Session 18) → implémentation de `weapon_lost` (Étape 11).
+
+#### 1. Première tentative `weapon_lost` (REJETÉE)
+Implémentation initiale en suivant littéralement la chorégraphie "Choc" suggérée par `PROMPT_CLAUDE_CODE_BATCH8_SUITE.md` (torso -25° + squash scaleX=1.15/scaleY=0.88, head -30°, hip.y -72 à f6). Vérifications Playwright numériques toutes passées (pas de NaN, saut max 12.22°, end-state correct).
+
+**Rejet utilisateur** : *"Je ne valide pas, normalement weapon lost n'est pas forcement a cause d'un coup mais serait plutot car le personage a tribucher en arriere ou l'arme lui a glisser des mains, là tu viens seulement de copier l'animation weapon break, interdiction de copier une animation car tu depenses des tokens pour rien, met ta memoire a jour ainsi qu'un tips a lire dans les priorité dans le continuity et recommence"*
+
+**Cause du rejet** : la chorégraphie "Choc" reproduisait exactement la forme de `weapon_break` (torso+head snap-back + squash sur torso) — même mécanisme (impact) que `weapon_break`, alors que `weapon_lost` représente une perte d'équilibre (trébuchement), pas un nouvel impact.
+
+**Actions correctives** :
+- Nouvelle règle ❌ ajoutée dans "Règles qualité absolues" (ci-dessus, § RÈGLES FONDAMENTALES) : interdiction de recycler la forme/squash/timing d'une animation déjà implémentée pour un événement narratif différent — identifier CAUSE + nœud(s) pilote(s) AVANT de dessiner les keyframes.
+- Règle ✅ squash amendée : squash & stretch réservé EXCLUSIVEMENT à l'impact.
+- Nouvelle mémoire [[feedback-animation-narrative-distinctness]] créée.
+
+#### 2. Redesign `weapon_lost` v2 — trébuchement arrière (25f, loop:false, disarmsOnComplete:true)
+**Cause identifiée** : perte d'équilibre (pas d'impact) — privé du contrepoids de l'arme après `weapon_drop`, le combattant trébuche en arrière.
+**Nœuds pilotes** : `hip.x` (transfert de poids), `legUpper_R/L` (pas de rattrapage + repositionnement), `armUpper_R/L`+`armLower_R/L` (moulinet symétrique pour l'équilibre). **Aucun squash/stretch** (scaleX/scaleY restent à 1 toute l'animation — contrairement à `weapon_break`).
+
+`f0` reprend la pose de fin de `weapon_drop` (`armUpper_R=30°`, `armLower_R=-100°`, `armUpper_L=10°`, `armLower_L=-20°`, `weaponSocket=100°`).
+
+**Chorégraphie** :
+- **f0 → f9 (déséquilibre)** : `hip.x` 0→-18 (`easeOutQuad`), `torso` 0→-12° (bascule progressive, pas de snap), `legUpper_R` 0→-35° (grand pas de rattrapage arrière), `legUpper_L` 0→+20° (contrepoids), les deux bras moulinent symétriquement vers l'arrière (`armUpper_R` 30°→-60°, `armUpper_L` 10°→-50°).
+- **f9 → f17 (rattrapage)** : le corps repart vers l'avant avec léger overshoot (`torso` -12°→+6°, `hip.x` -18→+8), jambes se replantent, bras redescendent.
+- **f17 → f25 (settle)** : micro-oscillation, `head` en différé ~3f (secondary motion), `weaponSocket` ease vers 0°, posture finale relâchée "unarmed".
+
+#### 3. Vérification frame par frame (Playwright)
+```
+f00 : torso=0  head=0  hipX=0   hipY=-70  legUpR=0   legUpL=0   | aUR=30  aLR=-100 aUL=10  aLL=-20 | ws=100  (continuité weapon_drop)
+f09 : torso=-12 head=-7.5 hipX=-18 hipY=-67 legUpR=-35 legUpL=20 | aUR=-60 aLR=-30  aUL=-50 aLL=-30 | ws=40
+f17 : torso=6  head≈0   hipX=8   hipY=-71  legUpR=8   legUpL=-6  | aUR=-5  aLR=-25  aUL=5   aLL=-25 | ws=10
+f24 : torso≈0  head≈0   hipX≈0   hipY≈-70  legUpR≈0   legUpL≈0   | aUR≈-10 aLR≈-20  aUL≈10  aLL≈-20 | ws≈0   (playing=false)
+```
+Aucun `NaN`, saut max inter-frame = 18.89° (< 90°), `scaleX`/`scaleY` = 1 partout (pas de squash).
+
+Test `disarmsOnComplete` via le vrai bouton PLAY WEAPON LOST (25 frames) : `weaponStyle: 'unarmed'`, `hasWeapon: false`, `currentAnim: 'weapon_idle'` ✅. Switch vers `ranged` après coup → `armUpper_R≈-40.4°`, `armLower_R≈-80.15°`, `weaponSocket≈-19.5°`, `weaponVisible: true` (fix Session 18 toujours opérationnel). Aucune erreur console.
+
+Captures aux f0/f6/f14/f18/f24/end_state confirment la lecture narrative : déséquilibre arrière avec bras en moulinet (f6) → rattrapage (f14) → settle quasi-idle (f18/f24), sans aucune sensation d'impact.
+
+#### 4. Validation utilisateur
+*"je valide"* — **`weapon_lost` validé (Étape 11 ✅)**. `disarm_attack` + `weapon_break` + `weapon_drop` + `weapon_lost` = 4/5 animations Batch 8 validées. `validatedAnims`/`inProgressAnims` mis à jour (`weapon_lost` → vert, `weapon_fall` → rouge).
+
+#### Prochaine étape
+**Étape 12** : `weapon_fall` (20f) — chute/rebond de l'arme au sol, regard du combattant vers le sol. Avant de dessiner les keyframes, appliquer [[feedback-animation-narrative-distinctness]] : identifier la CAUSE (gravité sur l'arme tombée, pas le combattant) et les nœuds pilotes (probablement `weaponSocket`/arme + tête/regard du combattant qui suit l'arme), sans recycler la forme de `weapon_lost`/`weapon_drop`.
+
+---
+
+*Dernière mise à jour : 2026-06-13 — Session 19 — `weapon_lost` validé (Batch 8 = 4/5) — trébuchement arrière (perte d'équilibre, PAS un impact) : transfert de poids hip.x + pas de rattrapage + moulinet symétrique des bras, sans squash ; nouvelle règle qualité ajoutée contre le recyclage de chorégraphie entre animations narrativement distinctes.*
+
+---
+
+### SESSION 20 — 2026-06-13 (heure locale)
+
+**Agent** : Claude Code (Claude Sonnet 4.6)
+**Déclencheur** : Directive critique de l'utilisateur — certaines animations ne reflètent pas l'état EN LIVE de l'arme équipée (ex: `step_forward` en `unarmed` ne repasse pas par la pose unarmed). Audit complet demandé, animation par animation, depuis `idle`. Les skills ne sont pas implémentés ici (gérés côté jeu) → placeholders prévus dans les scripts le cas échéant.
+
+#### 1. Mécanisme (rappel, inchangé) + placeholder skills (nouveau)
+`Animator.update()` applique additivement `WEAPON_HOLD_STYLES[fighter.weaponStyle]` (table `WEAPON_HOLD_OVERLAY_TARGETS`) à CHAQUE FRAME, sur toute animation flaguée `weaponStyleOverlay: true`. Avant cette session, seul `weapon_idle` portait ce flag — toute autre animation gardait l'arme figée dans sa pose `idle` au moment du dernier `weapon_idle`.
+
+**Placeholder skills (nouveau, Session 20)** : même mécanisme additif ajouté dans `Animator.update()`, relu sur `fighter.skillStyle` via `SKILL_HOLD_STYLES`/`SKILL_HOLD_OVERLAY_TARGETS` (`constants.js`). Les skills ne sont pas implémentés dans ce moteur (gérés côté jeu) → `SKILL_HOLD_STYLES = { none: {} }`, `SKILL_HOLD_OVERLAY_TARGETS = []`, donc cette 2e passe est un no-op tant que le jeu n'y ajoute pas d'entrées. Prêt à fonctionner sans modification du moteur.
+
+#### 2. Groupe 1 — Idle/Locomotion (8/10 validé)
+Flag `weaponStyleOverlay: true` ajouté (config seule, aucun changement moteur) à : `idle`, `idle_breathing`, `walk_forward`, `walk_backward`, `step_forward`, `step_backward`, `turn_left`, `turn_right` — **validé par l'utilisateur**.
+
+**Exclus (décision validée)** : `run_forward` / `run_backward` — ces deux animations animent déjà fortement les bras (swing jusqu'à ±50°/-95° pour l'équilibre du sprint) ; superposer l'overlay statique de tenue d'arme créerait un conflit visuel. Le port d'arme en sprint reste un point hors scope de cette passe.
+
+**Hors scope (catégorie distincte)** : `dodge_backward` — n'anime que `hip`/`torso`, aucune piste bras/arme ; non concerné par cette passe.
+
+#### 3. Groupe 2 — `prepare` / `focus` (validé, avec refonte complète)
+Flag `weaponStyleOverlay: true` ajouté aux deux (`batch1_prep.js`). En testant l'overlay, la chorégraphie d'origine s'est révélée incohérente ("zombie qui tombe") → refonte complète sur demande explicite de l'utilisateur ("Refaire les deux selon l'intention d'origine").
+
+- **Bras (validé)** : escalade de flexion de garde idle→prepare→focus. `prepare` : `armUpper_L: 10→-2→0` (f0/15/25), `armLower_L: -20→-37→-35` ; `armUpper_R: -10→-22→-20`, `armLower_R: -30→-47→-45`. `focus` : poursuite de la flexion jusqu'à `armUpper_L≈-38°`/`armLower_L≈-45°`, `armUpper_R≈-52°`/`armLower_R≈-55°` (maintenu f15-f40).
+- **Jambes (validé "pour le moment", après 2 itérations rejetées)** : posture de garde quasi-statique, pieds quasi fixes. `prepare` : `legUpper_L=legUpper_R: 0→-36°→-30°` (f12/f25), `legLower_L=legLower_R: 0→+57°→+49°`. `focus` : `legUpper=-26°`, `legLower=+42°` (maintenu f15-f40). Valeurs dérivées par IK 2D complet (formules `FX/FY` du pied, cf. `.tmp_ik_solve.cjs`) pour garder le bas du pied quasi fixe en X et Y pendant que `hip.y` descend, **en respectant le sens de flexion naturel du genou** (cf. règle qualité ci-dessous).
+- Test Playwright (`.tmp_group2_legs_test.cjs`, 4 styles d'arme × `prepare`/`focus`) : 0 issue, genou max 57° (< 70°), coude max ~113° avec overlay (< 120°), déplacement 2D du pied max 1.2px.
+
+#### 4. Nouvelle règle qualité (issue de 2 rejets consécutifs sur le Groupe 2)
+Avant d'écrire toute rotation de membre (genou/coude), vérifier le SENS contre une animation déjà validée exerçant la même articulation dans la même direction anatomique — ex: `step_forward`/`step_backward` utilisent tous deux `legLower=+35°` pour la flexion correcte du genou (peu importe le signe de `legUpper`). Une branche IK à deux solutions doit être choisie via cette convention AVANT tout test/screenshot, pas présentée "pour avis". Ajouté à `docs/continuity.md` §Règles qualité absolues + nouvelle mémoire [[feedback-rotation-direction-check]].
+
+#### 5. Groupe 3 — Attaques mains nues + Combos (12 anims, exclues — validé, 0 edit)
+`punch_left`, `punch_right`, `double_punch`, `kick_left`, `kick_right`, `heavy_kick`, `headbutt`, `combo_1..4`, `combo_finisher` : toutes animent `armUpper_R`/`armLower_R` sur leur amplitude complète (ex: `punch_right` -10°→-100°→-10°) — exactement les nœuds ciblés par `WEAPON_HOLD_STYLES`. Le style `unarmed` (cas par défaut) impose un décalage CONSTANT de -32.5°/-57.5° sur ces nœuds : appliquer `weaponStyleOverlay` décalerait tout le swing du coup (ex: pic du punch -100°→-132.5°), cassant la chorégraphie déjà validée ; `thrown` serait pire (+47.5°/+37.5°). **Exclues**, même raisonnement que `run_forward`/`run_backward` (Groupe 1).
+
+#### 6. Groupe 4 — weapon_attack_*/réactions (validé, 0 edit)
+- `weapon_attack_light/medium/heavy`, `weapon_critical`, `weapon_combo`, `weapon_combo_crit`, `disarm_attack` (7 anims) : ont déjà `weaponAttackOverlay: true`, mécanisme séparé qui recentre vers la garde "boxeur mains nues" (`WEAPON_ATTACK_UNARMED_OVERLAY`) quand `weaponStyle==='unarmed'` — déjà conscient de l'état en live. RAS.
+- `weapon_draw`, `weapon_break`, `weapon_drop`, `weapon_lost` (4 anims déjà validés) : chorégraphient explicitement `weaponSocket` pendant la transition/perte, enchaînent sur `weapon_idle` (fix Session 18). RAS.
+- `hit_light`, `hit_heavy`, `ko_back` (seules réactions implémentées ; `hit_medium`/`stagger`/`knockback`/`knockdown`/`ko_front`/etc. pas encore implémentées) : swing `armUpper_R`/`armLower_R` sur toute l'amplitude (mécanisme même de la réaction, ex `ko_back` 0°→110°→-120°) — même conflit que le Groupe 3. **Exclues.**
+
+#### Conclusion de l'audit "état en live de l'arme"
+Audit **terminé** pour les 39 animations implémentées : Groupes 1+2 (10 anims, overlay ajouté+validé) + placeholder skills (§1) + Groupe 3 (12 anims exclues) + Groupe 4 (3 réactions exclues, 11 anims armes déjà correctes). Aucune autre catégorie implémentée ne reste à vérifier.
+
+#### 7. `weapon_fall` (Étape 12, Batch 8 = 5/5 ✅) — clôture du Batch 8
+
+**Cause identifiée** (cf. [[feedback-animation-narrative-distinctness]]) : gravité agissant sur l'ARME tombée, pas sur le combattant — ALTERNATIVE narrative à `weapon_lost` (même point de branchement, histoire différente : `weapon_lost` = le combattant trébuche ; `weapon_fall` = le combattant reste stable et regarde son arme tomber au sol).
+
+`f0` reprend la pose de fin de `weapon_drop` (`armUpper_R=30°`, `armLower_R=-100°`, `armUpper_L=10°`, `armLower_L=-20°`, `weaponSocket=100°`, `torso=head=0`, `hip=(0,-70)`) — même point de départ que `weapon_lost`, mais l'issue diverge totalement.
+
+**Convention de rotation vérifiée géométriquement** (cf. [[feedback-rotation-direction-check]]) : l'orientation de l'arme (vecteur hilt→tip, tip = point local (80,0) du node `weapon`, via `globalMatrix.transformPoint`) = somme cumulée `torso + armUpper_R + armLower_R + weaponSocket` (θ), direction monde = `(cos θ, sin θ)`, θ=90° pointant droit vers le bas. Référence `weapon_idle` f0 : θ=-40° → arme pointée haut-avant (garde), vérifié exact contre le vecteur tip-hilt mesuré. `weapon_fall` f0 : θ=30° (héritage `weapon_drop`, arme déjà basculée vers le bas-avant).
+
+Une première tentative (`armLower_R` -100°→+20° en 8f, en plus de `weaponSocket` 100°→180°) donnait θ≈250° en f8 → arme remontant jusqu'à hauteur de tête (tipY=307.7 vs hip≈388), **sens opposé à "l'arme tombe au sol"** — détecté via `getGlobalPos`/géométrie AVANT tout screenshot, puis confirmé visuellement (capture f8 : arme disparaissant vers le coin haut-gauche). **Redesign** : `weaponSocket` devient seul pilote de la chute pendant f0-f10 (100°→154°→165°, θ: 30°→96°→103°), bras quasi figé (`armUpper_R` 30→34°, `armLower_R` -100→-94°), puis "flop" inerte f10-f20 vers le settle de `weapon_lost` (`armUpper_R`→-10°, `armLower_R`→-20°) une fois l'arme au sol, `weaponSocket` 165°→145°→130° (θ reste ~93-104°).
+
+**Chorégraphie validée** :
+- **f0 → f8** : `weaponSocket` 100°→154° (`easeInQuad`, accélération de gravité) — θ passe de 30° à 96° (arme quasi verticale, pointe proche du sol). `torso` 0→5°, `head` 0→15° (regard vers l'arme qui tombe, léger décalage temporel sur le pic), `hip.y` -70→-73 (affaissement léger), micro-réactions `legUpper_R/L` (±3°) et bras gauche (`armUpper_L` 10→5°, `armLower_L` -20→-25°), bras droit quasi figé (`armUpper_R` 30→33°, `armLower_R` -100→-96°).
+- **f8 → f14** : impact/rebond de l'ARME contre le sol — `weaponSocket.scaleY` 1→0.7 (f10, compression) →1.2 (f13, rebond) →1 (f20), squash localisé sur `weaponSocket` (PAS sur le torse, car le choc concerne l'arme, pas le combattant). `weaponSocket.rotation` 154°→165°→145° (léger overshoot puis retour, θ oscille 96°→103°→103.6°). `torso` 5°→-2°, `head` 15°→5° (retour progressif).
+- **f14 → f20** : bras droit retombe inerte (`armUpper_R` 15°→-10°, `armLower_R` -55°→-20°, valeurs cohérentes avec le settle de `weapon_lost`), `weaponSocket`→130° (θ≈100°, arme posée au sol), `head`/`torso`/`hip`/jambes reviennent au neutre (`easeInOutQuad`).
+
+**Vérification géométrique** (distance tip-arme / sol, `foot_R.y≈485`) : f0=52px au-dessus du sol → f2:40 → f4:25 → f6:12 → f8:8 → f10:10 (rebond, léger remonté) → f12:4 → f14/17/20 : -1.8/-3.2/-1.9 (pénétration négligeable de 1-3px sur un segment de 80px ; sans conséquence visuelle car l'arme disparaît à la fin de l'animation via `disarmsOnComplete`).
+
+**Tests Playwright** :
+- `.tmp_batch8_weapon_fall.cjs` (table frame-par-frame) : 0 `NaN`, 0 saut > 90°/frame, `weaponSocket.scaleX` stable = 1.
+- `.tmp_batch8_weapon_fall_disarm.cjs` (clic réel sur le bouton PLAY WEAPON FALL, 20 frames) : `weaponStyle: 'unarmed'`, `hasWeapon: false`, `currentAnim` = `weapon_idle` (50f, loop, `weaponStyleOverlay:true`), select panneau droit → "Unarmed" ✅ (fix Session 18 toujours opérationnel). Aucune erreur console.
+- `.tmp_batch8_weapon_fall_shots.cjs` (captures f0/f8/f10/f12/f14/f20) : confirment la lecture narrative — l'arme bascule d'une inclinaison avant peu marquée (f0) à une orientation quasi verticale pointant vers le sol avec un léger rebond (f8-f14), nettement distincte du trébuchement arrière de `weapon_lost`.
+
+#### Validation utilisateur
+*"oui c'est validé"* — **`weapon_fall` validé (Étape 12 ✅)**. Batch 8 = **5/5 validé (40/88)**. `validatedAnims`/`inProgressAnims` mis à jour (`weapon_fall` → vert ajouté en fin de liste, `inProgressAnims` vidé — Batch 9 non encore défini).
+
+#### Prochaine étape
+Batch 8 ("Perte d'arme") **terminé** (40/88 animations validées). Batch 9 n'est pas encore spécifié dans les documents de référence — à définir avec l'utilisateur avant de poursuivre l'implémentation.
+
+---
+
+*Dernière mise à jour : 2026-06-13 — Session 20 — Audit "état en live de l'arme" TERMINÉ (39/39 anims implémentées) : Groupe 1 (8/10 idle/locomotion) + Groupe 2 (`prepare`/`focus`, refonte bras+jambes) + placeholder skills, validés ; Groupes 3 (12 anims) et 4-réactions (3 anims) exclus avec justification ; Groupe 4-armes (11 anims) déjà correct. Nouvelles règles : sens de rotation vérifié AVANT edit, investissement amont sur la conception, Map/continuity comme référentiels exhaustifs. Puis `weapon_fall` validé (Étape 12 ✅) — chute/rebond de l'arme piloté par `weaponSocket` (θ cumulé torso+armUpper_R+armLower_R+weaponSocket), bras droit passif, squash localisé sur l'arme. **Batch 8 terminé : 5/5 (40/88)**. Batch 9 à définir.*
